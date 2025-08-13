@@ -4,16 +4,16 @@ channels:
   - pytorch
   - defaults
 dependencies:
-  - python=3.9
-  - pandas>=1.5.0
-  - openpyxl>=3.1.0
-  - scikit-learn>=1.1.0
-  - numpy>=1.21.0  # 移除版本限制，FAISS 1.12.0支持NumPy 2.x
-  - tqdm>=4.64.0
-  - jieba>=0.42.1
+  - python=3.11  # 升级到Python 3.11，性能提升10-60%
+  - pandas>=2.1.0  # 最新稳定版本，更好的性能和功能
+  - openpyxl>=3.1.2  # 最新稳定版本
+  - scikit-learn>=1.3.2  # 最新稳定版本，更好的性能
+  - numpy>=1.24.0  # 支持NumPy 2.x，更好的性能
+  - tqdm>=4.66.0  # 最新稳定版本
+  - jieba>=0.42.1  # 最新稳定版本
   - pip
   - pip:
-    - sentence-transformers>=2.2.0
-    - torch>=1.13.0
-    - faiss-gpu>=1.12.0  # 升级到FAISS 1.12.0，支持NumPy 2.x
-    - psycopg2-binary>=2.9.9
+    - sentence-transformers>=2.2.2  # 最新稳定版本
+    - torch>=2.1.0  # 最新稳定版本，更好的性能和稳定性
+    - faiss-gpu>=1.12.0  # 支持NumPy 2.x
+    - psycopg2-binary>=2.9.9  # 最新稳定版本

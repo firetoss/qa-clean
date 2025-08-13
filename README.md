@@ -8,7 +8,7 @@
 - 🎯 **聚类合并**: 自动识别相似问题并生成代表问题
 - 💾 **多存储支持**: 支持FAISS GPU和PostgreSQL+pgvector
 - 🚀 **高性能**: GPU加速的向量搜索和聚类算法
-- 🐍 **Python原生**: 纯Python实现，支持Python 3.9+
+- 🐍 **Python原生**: 纯Python实现，支持Python 3.11+
 - 📊 **灵活输出**: 支持CSV、Excel等多种格式
 - 🔧 **NumPy 2.x兼容**: 使用FAISS 1.12.0，完全支持NumPy 2.x
 
@@ -17,7 +17,7 @@
 ### 前置要求
 
 - **Anaconda** 或 **Miniconda** (推荐)
-- **Python 3.9+**
+- **Python 3.11+**
 - **CUDA支持** (可选，用于GPU加速)
 - **NumPy 2.x支持** (FAISS 1.12.0完全兼容)
 
@@ -38,34 +38,23 @@ conda activate qa-clean
 pip install -e .
 ```
 
-#### 方法2: 使用安装脚本
 
-**Linux/macOS:**
-```bash
-chmod +x install.sh
-./install.sh
-```
 
-**Windows:**
-```cmd
-install.bat
-```
-
-#### 方法3: 手动安装
+#### 方法2: 手动安装
 
 ```bash
 # 创建环境
-conda create -n qa-clean python=3.9
+conda create -n qa-clean python=3.11
 
 # 激活环境
 conda activate qa-clean
 
 # 安装依赖
-conda install -c conda-forge pandas openpyxl scikit-learn numpy tqdm jieba
-conda install -c pytorch pytorch
+conda install -c conda-forge pandas>=2.1.0 openpyxl>=3.1.2 scikit-learn>=1.3.2 numpy>=1.24.0 tqdm>=4.66.0 jieba>=0.42.1
+conda install -c pytorch pytorch>=2.1.0
 
 # 安装其他依赖
-pip install sentence-transformers faiss-gpu>=1.12.0 psycopg2-binary
+pip install sentence-transformers>=2.2.2 faiss-gpu>=1.12.0 psycopg2-binary>=2.9.9
 
 # 安装项目
 pip install -e .
@@ -121,7 +110,7 @@ Python怎么安装?,访问python.org下载安装程序...,技术,用户手册
 ### 向量存储选项
 
 #### 1. FAISS GPU (faiss_gpu) - 默认推荐
-- **优势**: 高性能向量搜索，GPU加速，速度极快，无需外部数据库，支持Python 3.9+，完全支持NumPy 2.x
+- **优势**: 高性能向量搜索，GPU加速，速度极快，无需外部数据库，支持Python 3.11+，完全支持NumPy 2.x
 - **劣势**: 数据不持久化，内存占用较高，重启后数据丢失，需要GPU资源
 - **适用场景**: 开发测试、高性能要求、快速原型、GPU环境、NumPy 2.x环境
 
@@ -135,7 +124,7 @@ Python怎么安装?,访问python.org下载安装程序...,技术,用户手册
 - **开发/测试环境**: 使用 `faiss_gpu` 存储
 - **生产环境**: 有PostgreSQL时使用 `pgvector`，否则使用 `faiss_gpu`
 - **快速原型**: 使用 `faiss_gpu` 存储
-- **NumPy 2.x环境**: 强烈推荐使用 `faiss_gpu`（FAISS 1.12.0）
+- **NumPy 2.x环境**: 推荐使用 `faiss_gpu`（FAISS 1.12.0）
 
 ## 🔧 配置
 
@@ -222,39 +211,26 @@ mypy src/
 ## 📝 依赖
 
 ### 核心依赖
-- `pandas>=1.5.0`: 数据处理
-- `sentence-transformers>=2.2.0`: 文本嵌入模型
-- `torch>=1.13.0`: PyTorch深度学习框架
+- `pandas>=2.1.0`: 数据处理
+- `sentence-transformers>=2.2.2`: 文本嵌入模型
+- `torch>=2.1.0`: PyTorch深度学习框架
 - `faiss-gpu>=1.12.0`: FAISS GPU向量搜索（支持NumPy 2.x）
-- `scikit-learn>=1.1.0`: 机器学习算法
-- `numpy>=1.21.0`: 数值计算（支持NumPy 2.x）
+- `scikit-learn>=1.3.2`: 机器学习算法
+- `numpy>=1.24.0`: 数值计算（支持NumPy 2.x）
 
 ### 存储依赖
 - `psycopg2-binary>=2.9.9`: PostgreSQL连接器（pgvector）
 
 ### 开发依赖
-- `ruff>=0.5`: 代码检查和格式化
-- `mypy>=1.8`: 类型检查
-- `pytest>=8`: 测试框架
+- `ruff>=0.1.6`: 代码检查和格式化
+- `mypy>=1.7.1`: 类型检查
+- `pytest>=7.4.3`: 测试框架
 
 ## 🔧 故障排除
 
-### NumPy兼容性问题
+### 常见问题
 
-如果遇到NumPy兼容性问题，项目已升级到FAISS 1.12.0，完全支持NumPy 2.x：
-
-```bash
-# 使用升级脚本
-chmod +x scripts/upgrade_faiss.sh
-./scripts/upgrade_faiss.sh
-
-# 或手动升级
-pip install faiss-gpu>=1.12.0 --force-reinstall
-```
-
-### 环境重建
-
-如果问题持续，可以重建环境：
+如果遇到问题，可以尝试重建环境：
 
 ```bash
 # 删除旧环境
@@ -265,6 +241,8 @@ conda env create -f environment.yml
 conda activate qa-clean
 pip install -e .
 ```
+
+
 
 ## 🤝 贡献
 
