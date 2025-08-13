@@ -21,6 +21,17 @@
 - **CUDA支持** (可选，用于GPU加速)
 - **NumPy 2.x支持** (FAISS 1.12.0完全兼容)
 
+### 重要说明
+
+**FAISS安装**: FAISS GPU/CPU 必须通过 conda-forge 安装，不能通过pip安装：
+```bash
+# GPU版本（推荐，需要CUDA支持）
+conda install -c conda-forge faiss-gpu>=1.12.0
+
+# CPU版本（如果没有GPU）
+conda install -c conda-forge faiss-cpu>=1.12.0
+```
+
 ### 安装
 
 #### 方法1: 使用conda（推荐）
@@ -53,8 +64,11 @@ conda activate qa-clean
 conda install -c conda-forge pandas>=2.1.0 openpyxl>=3.1.2 scikit-learn>=1.3.2 numpy>=1.24.0 tqdm>=4.66.0 jieba>=0.42.1
 conda install -c pytorch pytorch>=2.1.0
 
+# 安装FAISS（必须通过conda-forge）
+conda install -c conda-forge faiss-gpu>=1.12.0
+
 # 安装其他依赖
-pip install sentence-transformers>=2.2.2 faiss-gpu>=1.12.0 psycopg2-binary>=2.9.9
+pip install sentence-transformers>=2.2.2 psycopg2-binary>=2.9.9
 
 # 安装项目
 pip install -e .

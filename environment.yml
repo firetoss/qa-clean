@@ -11,9 +11,9 @@ dependencies:
   - numpy>=1.24.0  # 支持NumPy 2.x，更好的性能
   - tqdm>=4.66.0  # 最新稳定版本
   - jieba>=0.42.1  # 最新稳定版本
+  - faiss-gpu>=1.12.0  # 使用conda-forge安装FAISS GPU
   - pip
   - pip:
     - sentence-transformers>=2.2.2  # 最新稳定版本
     - torch>=2.1.0  # 最新稳定版本，更好的性能和稳定性
-    - faiss-gpu>=1.12.0  # 支持NumPy 2.x
     - psycopg2-binary>=2.9.9  # 最新稳定版本
