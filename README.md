@@ -1,0 +1,250 @@
+# QA Clean - QA 数据清洗与治理工具
+
+一个强大的QA数据清洗与治理工具，支持聚合去重、聚类合并、代表问题输出等功能。
+
+## ✨ 特性
+
+- 🔍 **智能去重**: 基于双嵌入模型的语义相似度检测
+- 🎯 **聚类合并**: 自动识别相似问题并生成代表问题
+- 💾 **多存储支持**: 支持FAISS GPU和PostgreSQL+pgvector
+- 🚀 **高性能**: GPU加速的向量搜索和聚类算法
+- 🐍 **Python原生**: 纯Python实现，支持Python 3.9+
+- 📊 **灵活输出**: 支持CSV、Excel等多种格式
+
+## 🚀 快速开始
+
+### 前置要求
+
+- **Anaconda** 或 **Miniconda** (推荐)
+- **Python 3.9+**
+- **CUDA支持** (可选，用于GPU加速)
+
+### 安装
+
+#### 方法1: 使用conda（推荐）
+
+```bash
+# 克隆仓库
+git clone <repository-url>
+cd qa-clean
+
+# 创建并激活环境
+conda env create -f environment.yml
+conda activate qa-clean
+
+# 安装项目
+pip install -e .
+```
+
+#### 方法2: 使用安装脚本
+
+**Linux/macOS:**
+```bash
+chmod +x install.sh
+./install.sh
+```
+
+**Windows:**
+```cmd
+install.bat
+```
+
+#### 方法3: 手动安装
+
+```bash
+# 创建环境
+conda create -n qa-clean python=3.9
+
+# 激活环境
+conda activate qa-clean
+
+# 安装依赖
+conda install -c conda-forge pandas openpyxl scikit-learn numpy tqdm jieba
+conda install -c pytorch pytorch
+
+# 安装其他依赖
+pip install sentence-transformers faiss-gpu psycopg2-binary
+
+# 安装项目
+pip install -e .
+```
+
+### 开发环境
+
+```bash
+# 创建开发环境
+conda env create -f environment-dev.yml
+conda activate qa-clean-dev
+
+# 安装项目
+pip install -e ".[dev]"
+```
+
+### 基本用法
+
+```bash
+# 激活环境
+conda activate qa-clean
+
+# 处理QA数据（使用FAISS GPU，默认）
+qa-clean process data.csv --output results.csv
+
+# 使用PostgreSQL+pgvector存储
+qa-clean process data.csv --vector-store pgvector --output results.csv
+
+# 搜索相似问题
+qa-clean search "如何安装Python?" --vector-store faiss_gpu
+
+# 查看存储信息
+qa-clean info --vector-store faiss_gpu
+```
+
+## 📁 输入格式
+
+支持CSV和Excel格式，需要包含以下列：
+
+- `question`: 问题文本
+- `answer`: 答案文本
+- 其他列将作为元数据保存
+
+示例：
+```csv
+question,answer,category,source
+如何安装Python?,Python可以通过官网下载安装包...,技术,官方文档
+Python怎么安装?,访问python.org下载安装程序...,技术,用户手册
+```
+
+## 🏗️ 架构设计
+
+### 向量存储选项
+
+#### 1. FAISS GPU (faiss_gpu) - 默认推荐
+- **优势**: 高性能向量搜索，GPU加速，速度极快，无需外部数据库，支持Python 3.9+
+- **劣势**: 数据不持久化，内存占用较高，重启后数据丢失，需要GPU资源
+- **适用场景**: 开发测试、高性能要求、快速原型、GPU环境
+
+#### 2. PostgreSQL + pgvector (pgvector)
+- **优势**: 企业级稳定性，支持复杂查询，可扩展性强，支持事务和ACID，数据持久化
+- **劣势**: 需要PostgreSQL环境，部署相对复杂，资源消耗较高
+- **适用场景**: 大规模生产、企业环境、需要复杂查询
+
+### 推荐选择
+
+- **开发/测试环境**: 使用 `faiss_gpu` 存储
+- **生产环境**: 有PostgreSQL时使用 `pgvector`，否则使用 `faiss_gpu`
+- **快速原型**: 使用 `faiss_gpu` 存储
+
+## 🔧 配置
+
+### 环境变量
+
+```bash
+# PostgreSQL配置（仅pgvector存储需要）
+export POSTGRES_HOST=localhost
+export POSTGRES_PORT=5432
+export POSTGRES_DB=qa_clean
+export POSTGRES_USER=postgres
+export POSTGRES_PASSWORD=password
+```
+
+### 命令行参数
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `vector_store` | faiss_gpu | 向量存储类型 (faiss_gpu/pgvector) |
+| `gpu_id` | 0 | GPU设备ID (仅faiss_gpu) |
+| `topk` | 100 | 相似度搜索top-k值 |
+| `question_col` | question | 问题列名 |
+| `answer_col` | answer | 答案列名 |
+
+## 📊 输出结果
+
+处理完成后会生成以下信息：
+
+- **原始数据数量**: 输入的QA对总数
+- **去重后数量**: 去重后的QA对数量
+- **聚类数量**: 识别出的相似问题聚类数
+- **代表问题**: 每个聚类的代表性问题
+
+输出文件包含：
+- `id`: 唯一标识符
+- `question`: 问题文本
+- `answer`: 答案文本
+- `cluster_id`: 聚类ID
+- `representative_question`: 代表性问题
+- `metadata`: 其他元数据
+
+## 🛠️ 开发
+
+### 项目结构
+
+```
+src/qa_clean/
+├── __init__.py
+├── cli.py              # 命令行接口
+├── processor.py        # 核心处理器
+├── models.py           # 双嵌入模型管理
+├── vector_factory.py   # 向量存储工厂
+├── faiss_store.py      # FAISS GPU存储
+├── vector_store.py     # PostgreSQL+pgvector存储
+├── vector_config.py    # 存储配置
+├── clustering.py       # 聚类算法
+└── utils.py            # 工具函数
+```
+
+### 本地开发
+
+```bash
+# 克隆仓库
+git clone <repository-url>
+cd qa-clean
+
+# 创建开发环境
+conda env create -f environment-dev.yml
+conda activate qa-clean-dev
+
+# 安装项目
+pip install -e ".[dev]"
+
+# 运行测试
+pytest
+
+# 代码格式化
+ruff format .
+
+# 类型检查
+mypy src/
+```
+
+## 📝 依赖
+
+### 核心依赖
+- `pandas>=1.5.0`: 数据处理
+- `sentence-transformers>=2.2.0`: 文本嵌入模型
+- `torch>=1.13.0`: PyTorch深度学习框架
+- `faiss-gpu>=1.7.2`: FAISS GPU向量搜索
+- `scikit-learn>=1.1.0`: 机器学习算法
+- `numpy>=1.21.0`: 数值计算
+
+### 存储依赖
+- `psycopg2-binary>=2.9.9`: PostgreSQL连接器（pgvector）
+
+### 开发依赖
+- `ruff>=0.5`: 代码检查和格式化
+- `mypy>=1.8`: 类型检查
+- `pytest>=8`: 测试框架
+
+## 🤝 贡献
+
+欢迎提交Issue和Pull Request！
+
+## 📄 许可证
+
+MIT License
+
+## 🙏 致谢
+
+- [BAAI/bge-large-zh-v1.5](https://huggingface.co/BAAI/bge-large-zh-v1.5) - 中文嵌入模型
+- [moka-ai/m3e-large](https://huggingface.co/moka-ai/m3e-large) - 多语言嵌入模型
+- [FAISS](https://github.com/facebookresearch/faiss) - Facebook AI相似性搜索库
+- [pgvector](https://github.com/pgvector/pgvector) - PostgreSQL向量扩展

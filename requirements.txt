@@ -1,0 +1,21 @@
+# QA Clean 项目依赖
+# 建议使用 conda 安装，如果必须使用 pip，请先安装 conda 环境
+
+# 核心依赖
+pandas>=1.5.0
+openpyxl>=3.1.0
+sentence-transformers>=2.2.0
+torch>=1.13.0
+faiss-gpu>=1.7.2
+psycopg2-binary>=2.9.9
+scikit-learn>=1.1.0
+numpy>=1.21.0
+tqdm>=4.64.0
+jieba>=0.42.1
+
+# 开发依赖（可选）
+# ruff>=0.5
+# mypy>=1.8
+# pytest>=8
+# types-tqdm
+# pandas-stubs

@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qa-clean"
+version = "0.1.0"
+description = "QA 数据清洗与治理工具（聚合去重、聚类合并、代表问题输出）"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+  { name = "Your Name" }
+]
+keywords = ["nlp", "qa", "cleaning", "dedup", "clustering", "reranker", "pgvector"]
+dependencies = [
+  "pandas>=1.5.0",
+  "openpyxl>=3.1.0",
+  "sentence-transformers>=2.2.0",
+  "torch>=1.13.0",
+  "faiss-gpu>=1.7.2",        # FAISS GPU版本（兼容Python 3.9）
+  "psycopg2-binary>=2.9.9",  # PostgreSQL连接器
+  "scikit-learn>=1.1.0",
+  "numpy>=1.21.0",
+  "tqdm>=4.64.0",
+  "jieba>=0.42.1",
+]
+
+[project.scripts]
+qa-clean = "qa_clean.cli:main"
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.5",
+  "mypy>=1.8",
+  "pytest>=8",
+  "types-tqdm",
+  "pandas-stubs",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.mypy]
+python_version = "3.9"
+pretty = true
+show_error_codes = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qa_clean"]
+
+

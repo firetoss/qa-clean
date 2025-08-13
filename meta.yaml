@@ -1,0 +1,74 @@
+{% set name = "qa-clean" %}
+{% set version = "0.1.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: .
+
+build:
+  number: 0
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv
+  entry_points:
+    - qa-clean = qa_clean.cli:main
+
+requirements:
+  host:
+    - python >=3.9
+    - pip
+    - setuptools
+    - wheel
+  run:
+    - python >=3.9
+    - pandas >=1.5.0
+    - openpyxl >=3.1.0
+    - scikit-learn >=1.1.0
+    - numpy >=1.21.0
+    - tqdm >=4.64.0
+    - jieba >=0.42.1
+    - pip
+    - pip:
+      - sentence-transformers >=2.2.0
+      - torch >=1.13.0
+      - faiss-gpu >=1.7.2
+      - psycopg2-binary >=2.9.9
+
+test:
+  imports:
+    - qa_clean
+    - qa_clean.cli
+    - qa_clean.processor
+    - qa_clean.models
+    - qa_clean.vector_factory
+    - qa_clean.faiss_store
+    - qa_clean.vector_store
+  commands:
+    - pip check
+    - qa-clean --help
+  requires:
+    - pip
+
+about:
+  home: https://github.com/yourusername/qa-clean
+  license: MIT
+  license_family: MIT
+  summary: QA 数据清洗与治理工具（聚合去重、聚类合并、代表问题输出）
+  description: |
+    一个强大的QA数据清洗与治理工具，支持聚合去重、聚类合并、代表问题输出等功能。
+    
+    特性：
+    - 智能去重：基于双嵌入模型的语义相似度检测
+    - 聚类合并：自动识别相似问题并生成代表问题
+    - 多存储支持：支持FAISS GPU和PostgreSQL+pgvector
+    - 高性能：GPU加速的向量搜索和聚类算法
+    - Python原生：纯Python实现，支持Python 3.9+
+    - 灵活输出：支持CSV、Excel等多种格式
+  doc_url: https://github.com/yourusername/qa-clean
+  dev_url: https://github.com/yourusername/qa-clean
+
+extra:
+  recipe-maintainers:
+    - yourusername
