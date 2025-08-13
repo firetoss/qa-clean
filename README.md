@@ -10,6 +10,7 @@
 - 🚀 **高性能**: GPU加速的向量搜索和聚类算法
 - 🐍 **Python原生**: 纯Python实现，支持Python 3.9+
 - 📊 **灵活输出**: 支持CSV、Excel等多种格式
+- 🔧 **NumPy 2.x兼容**: 使用FAISS 1.12.0，完全支持NumPy 2.x
 
 ## 🚀 快速开始
 
@@ -18,6 +19,7 @@
 - **Anaconda** 或 **Miniconda** (推荐)
 - **Python 3.9+**
 - **CUDA支持** (可选，用于GPU加速)
+- **NumPy 2.x支持** (FAISS 1.12.0完全兼容)
 
 ### 安装
 
@@ -63,7 +65,7 @@ conda install -c conda-forge pandas openpyxl scikit-learn numpy tqdm jieba
 conda install -c pytorch pytorch
 
 # 安装其他依赖
-pip install sentence-transformers faiss-gpu psycopg2-binary
+pip install sentence-transformers faiss-gpu>=1.12.0 psycopg2-binary
 
 # 安装项目
 pip install -e .
@@ -119,9 +121,9 @@ Python怎么安装?,访问python.org下载安装程序...,技术,用户手册
 ### 向量存储选项
 
 #### 1. FAISS GPU (faiss_gpu) - 默认推荐
-- **优势**: 高性能向量搜索，GPU加速，速度极快，无需外部数据库，支持Python 3.9+
+- **优势**: 高性能向量搜索，GPU加速，速度极快，无需外部数据库，支持Python 3.9+，完全支持NumPy 2.x
 - **劣势**: 数据不持久化，内存占用较高，重启后数据丢失，需要GPU资源
-- **适用场景**: 开发测试、高性能要求、快速原型、GPU环境
+- **适用场景**: 开发测试、高性能要求、快速原型、GPU环境、NumPy 2.x环境
 
 #### 2. PostgreSQL + pgvector (pgvector)
 - **优势**: 企业级稳定性，支持复杂查询，可扩展性强，支持事务和ACID，数据持久化
@@ -133,6 +135,7 @@ Python怎么安装?,访问python.org下载安装程序...,技术,用户手册
 - **开发/测试环境**: 使用 `faiss_gpu` 存储
 - **生产环境**: 有PostgreSQL时使用 `pgvector`，否则使用 `faiss_gpu`
 - **快速原型**: 使用 `faiss_gpu` 存储
+- **NumPy 2.x环境**: 强烈推荐使用 `faiss_gpu`（FAISS 1.12.0）
 
 ## 🔧 配置
 
@@ -187,7 +190,7 @@ src/qa_clean/
 ├── vector_factory.py   # 向量存储工厂
 ├── faiss_store.py      # FAISS GPU存储
 ├── vector_store.py     # PostgreSQL+pgvector存储
-├── vector_config.py    # 存储配置
+├── config.py           # 配置管理
 ├── clustering.py       # 聚类算法
 └── utils.py            # 工具函数
 ```
@@ -222,9 +225,9 @@ mypy src/
 - `pandas>=1.5.0`: 数据处理
 - `sentence-transformers>=2.2.0`: 文本嵌入模型
 - `torch>=1.13.0`: PyTorch深度学习框架
-- `faiss-gpu>=1.7.2`: FAISS GPU向量搜索
+- `faiss-gpu>=1.12.0`: FAISS GPU向量搜索（支持NumPy 2.x）
 - `scikit-learn>=1.1.0`: 机器学习算法
-- `numpy>=1.21.0`: 数值计算
+- `numpy>=1.21.0`: 数值计算（支持NumPy 2.x）
 
 ### 存储依赖
 - `psycopg2-binary>=2.9.9`: PostgreSQL连接器（pgvector）
@@ -233,6 +236,35 @@ mypy src/
 - `ruff>=0.5`: 代码检查和格式化
 - `mypy>=1.8`: 类型检查
 - `pytest>=8`: 测试框架
+
+## 🔧 故障排除
+
+### NumPy兼容性问题
+
+如果遇到NumPy兼容性问题，项目已升级到FAISS 1.12.0，完全支持NumPy 2.x：
+
+```bash
+# 使用升级脚本
+chmod +x scripts/upgrade_faiss.sh
+./scripts/upgrade_faiss.sh
+
+# 或手动升级
+pip install faiss-gpu>=1.12.0 --force-reinstall
+```
+
+### 环境重建
+
+如果问题持续，可以重建环境：
+
+```bash
+# 删除旧环境
+conda env remove -n qa-clean
+
+# 重新创建环境
+conda env create -f environment.yml
+conda activate qa-clean
+pip install -e .
+```
 
 ## 🤝 贡献
 

@@ -45,13 +45,15 @@ VECTOR_TABLE_CONFIG = {
 VECTOR_STORE_CONFIGS = {
     "faiss_gpu": {
         "name": "FAISS GPU",
-        "description": "高性能GPU向量搜索，使用FAISS 1.7.2",
+        "description": "高性能GPU向量搜索，使用FAISS 1.12.0（支持NumPy 2.x）",
         "pros": [
             "高性能向量搜索",
             "GPU加速，速度极快",
             "无需外部数据库",
             "支持Python 3.9+",
-            "内存中操作，速度快"
+            "内存中操作，速度快",
+            "完全支持NumPy 2.x",
+            "最新版本，性能更好"
         ],
         "cons": [
             "数据不持久化",
@@ -59,7 +61,7 @@ VECTOR_STORE_CONFIGS = {
             "重启后数据丢失",
             "需要GPU资源"
         ],
-        "recommended_for": ["开发测试", "高性能要求", "快速原型", "GPU环境"]
+        "recommended_for": ["开发测试", "高性能要求", "快速原型", "GPU环境", "NumPy 2.x环境"]
     },
     "pgvector": {
         "name": "PostgreSQL + pgvector",

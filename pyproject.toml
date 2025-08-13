@@ -18,10 +18,10 @@ dependencies = [
   "openpyxl>=3.1.0",
   "sentence-transformers>=2.2.0",
   "torch>=1.13.0",
-  "faiss-gpu>=1.7.2",        # FAISS GPU版本（兼容Python 3.9）
+  "faiss-gpu>=1.12.0",        # FAISS GPU版本（支持NumPy 2.x）
   "psycopg2-binary>=2.9.9",  # PostgreSQL连接器
   "scikit-learn>=1.1.0",
-  "numpy>=1.21.0",
+  "numpy>=1.21.0",           # 移除版本限制，FAISS 1.12.0支持NumPy 2.x
   "tqdm>=4.64.0",
   "jieba>=0.42.1",
 ]
