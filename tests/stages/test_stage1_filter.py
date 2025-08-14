@@ -36,7 +36,7 @@ class TestStage1Filter(unittest.TestCase):
         with open(test_path, 'w') as f:
             f.write("dummy")
         
-        result = _load_or_sample(test_path, 'id', 'question', 'answer')
+        result = _load_or_sample(test_path, 'question', 'answer')
         
         self.assertEqual(result, mock_df)
         mock_read_data_file.assert_called_once_with(test_path)
@@ -46,7 +46,7 @@ class TestStage1Filter(unittest.TestCase):
         """测试缺少必需列的情况"""
         # 模拟缺少列的DataFrame
         mock_df = MagicMock()
-        mock_df.columns = ['id', 'question']  # 缺少answer列
+        mock_df.columns = ['question']  # 缺少answer列
         mock_read_data_file.return_value = mock_df
         
         test_path = os.path.join(self.temp_dir, "test.parquet")
@@ -54,13 +54,13 @@ class TestStage1Filter(unittest.TestCase):
             f.write("dummy")
         
         # 应该返回示例数据
-        result = _load_or_sample(test_path, 'id', 'question', 'answer')
+        result = _load_or_sample(test_path, 'question', 'answer')
         
         # 验证返回的是示例数据
         self.assertIsNotNone(result)
         # 验证有正确的列
         if hasattr(result, 'columns'):
-            required_cols = {'id', 'question', 'answer'}
+            required_cols = {'question', 'answer'}
             self.assertTrue(required_cols.issubset(set(result.columns)))
 
     def test_load_or_sample_file_not_exist(self):
@@ -68,7 +68,7 @@ class TestStage1Filter(unittest.TestCase):
         nonexistent_path = os.path.join(self.temp_dir, "nonexistent.parquet")
         
         # 应该返回示例数据而不是抛出异常
-        result = _load_or_sample(nonexistent_path, 'id', 'question', 'answer')
+        result = _load_or_sample(nonexistent_path, 'question', 'answer')
         
         self.assertIsNotNone(result)
 
@@ -83,7 +83,7 @@ class TestStage1Filter(unittest.TestCase):
             f.write("dummy")
         
         # 应该返回示例数据
-        result = _load_or_sample(test_path, 'id', 'question', 'answer')
+        result = _load_or_sample(test_path, 'question', 'answer')
         
         self.assertIsNotNone(result)
 
@@ -94,16 +94,16 @@ class TestStage1Filter(unittest.TestCase):
         mock_df = MagicMock()
         mock_pd.DataFrame.return_value = mock_df
         
-        result = _load_or_sample("nonexistent.parquet", 'custom_id', 'custom_q', 'custom_a')
+        result = _load_or_sample("nonexistent.parquet", 'custom_q', 'custom_a')
         
         # 验证使用了正确的列名
         call_args = mock_pd.DataFrame.call_args[0][0]
-        self.assertIn('custom_id', call_args)
+        self.assertIn('id', call_args)  # id列自动创建
         self.assertIn('custom_q', call_args)
         self.assertIn('custom_a', call_args)
         
         # 验证示例数据有内容
-        self.assertEqual(len(call_args['custom_id']), 5)
+        self.assertEqual(len(call_args['id']), 5)
         self.assertEqual(len(call_args['custom_q']), 5)
         self.assertEqual(len(call_args['custom_a']), 5)
 
@@ -124,7 +124,6 @@ class TestStage1Filter(unittest.TestCase):
         mock_config.get.side_effect = lambda key, default=None: {
             'observe.stats_path': f"{self.temp_dir}/stats.json",
             'data.input_path': 'test.parquet',
-            'data.id_col': 'id',
             'data.q_col': 'question',
             'data.a_col': 'answer'
         }.get(key, default)
@@ -182,7 +181,6 @@ class TestStage1Filter(unittest.TestCase):
         mock_config.get.side_effect = lambda key, default=None: {
             'observe.stats_path': f"{self.temp_dir}/stats.json",
             'data.input_path': 'test.parquet',
-            'data.id_col': 'id',
             'data.q_col': 'question', 
             'data.a_col': 'answer'
         }.get(key, default)
@@ -323,19 +321,39 @@ class TestStage1Filter(unittest.TestCase):
         """测试错误处理的鲁棒性"""
         # 测试各种异常情况都能正常处理
         test_cases = [
-            ("", 'id', 'question', 'answer'),  # 空路径
-            ("nonexistent.file", 'id', 'q', 'a'),  # 不存在的文件
-            (None, 'id', 'question', 'answer'),  # None路径
+            ("", 'question', 'answer'),  # 空路径
+            ("nonexistent.file", 'q', 'a'),  # 不存在的文件
+            (None, 'question', 'answer'),  # None路径
         ]
         
-        for path, id_col, q_col, a_col in test_cases:
+        for path, q_col, a_col in test_cases:
             with self.subTest(path=path):
                 try:
-                    result = _load_or_sample(path, id_col, q_col, a_col)
+                    result = _load_or_sample(path, q_col, a_col)
                     # 应该返回示例数据，不抛出异常
                     self.assertIsNotNone(result)
                 except Exception as e:
                     self.fail(f"_load_or_sample应该处理错误而不是抛出异常: {e}")
+
+    @patch('src.stages.stage1_filter.read_data_file')
+    def test_auto_create_id_column(self, mock_read_data_file):
+        """测试自动创建id列功能"""
+        # 模拟没有id列的DataFrame
+        mock_df = MagicMock()
+        mock_df.columns = ['question', 'answer']
+        mock_df.__contains__ = lambda self, item: item in ['question', 'answer']
+        mock_df.__setitem__ = MagicMock()
+        mock_df.__len__ = lambda self: 3
+        mock_read_data_file.return_value = mock_df
+        
+        test_path = os.path.join(self.temp_dir, "test.parquet")
+        with open(test_path, 'w') as f:
+            f.write("dummy")
+        
+        result = _load_or_sample(test_path, 'question', 'answer')
+        
+        # 验证id列被创建
+        mock_df.__setitem__.assert_called_with('id', range(3))
 
     @patch('src.stages.stage1_filter.os.path.splitext')
     @patch('src.stages.stage1_filter.print')

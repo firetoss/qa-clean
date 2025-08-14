@@ -19,7 +19,7 @@
 - **Anaconda** 或 **Miniconda** (推荐)
 - **Python 3.11+**
 - **CUDA支持** (可选，用于GPU加速)
-- **输入数据**: 支持Parquet、Excel(xlsx/xls)、CSV格式，包含id/question/answer三列
+- **输入数据**: 支持Parquet、Excel(xlsx/xls)、CSV格式，仅需question/answer两列（id列可选）
 
 ### 重要说明
 
@@ -77,7 +77,7 @@ conda activate qa-clean-pipe
 # - input.parquet (推荐，性能最佳)
 # - input.xlsx / input.xls (Excel格式)
 # - input.csv (CSV格式，自动检测编码和分隔符)
-# 必须包含列：id, question, answer
+# 必须包含列：question, answer（id列可选，无则自动创建）
 
 # 一键运行流水线
 make run
@@ -97,11 +97,11 @@ ls outputs/  # 所有产物：.npy, .parquet, .json, 图表
 
 ## 📁 输入格式
 
-支持多种数据格式，必须包含以下三列：
+支持多种数据格式，必须包含以下列：
 
-- `id`: 唯一标识符
-- `question`: 问题文本
-- `answer`: 答案文本
+- `question`: 问题文本（必需）
+- `answer`: 答案文本（必需）
+- `id`: 唯一标识符（可选，无则自动创建行索引）
 
 ### 支持的文件格式
 
@@ -123,12 +123,14 @@ ls outputs/  # 所有产物：.npy, .parquet, .json, 图表
 ```python
 import pandas as pd
 
-# 创建示例数据
+# 创建示例数据（id列可选）
 df = pd.DataFrame({
-    'id': [1, 2, 3],
     'question': ['如何安装Python?', 'Python怎么安装?', '什么是机器学习？'],
     'answer': ['Python可以通过官网...', '访问python.org...', '机器学习是一种...']
 })
+
+# 可选：添加id列
+# df['id'] = [1, 2, 3]  # 如果不添加，程序会自动创建
 
 # 保存为不同格式
 df.to_parquet('data/raw/input.parquet', index=False)  # Parquet格式
@@ -391,7 +393,7 @@ pip install matplotlib rapidfuzz
 
 ### 数据准备
 - 支持多种格式：`input.parquet` (推荐) / `input.xlsx` / `input.csv`
-- 必含三列：`id`, `question`, `answer`
+- 必含列：`question`, `answer`（`id`列可选，无则自动创建）
 - CSV文件自动检测编码和分隔符
 
 ### 运行命令

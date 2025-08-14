@@ -423,7 +423,6 @@ class TestConfigIntegration(unittest.TestCase):
             },
             'data': {
                 'input_path': 'test.parquet',
-                'id_col': 'id',
                 'q_col': 'question',
                 'a_col': 'answer'
             },
@@ -464,7 +463,7 @@ class TestConfigIntegration(unittest.TestCase):
         
         # 验证各种路径访问
         self.assertEqual(config.get('pipeline.language'), 'zh')
-        self.assertEqual(config.get('data.id_col'), 'id')
+        self.assertEqual(config.get('data.q_col'), 'question')
         self.assertEqual(config.get('rerank.thresholds.high'), 0.83)
         self.assertEqual(config.get('embeddings.batch_size'), 64)
         

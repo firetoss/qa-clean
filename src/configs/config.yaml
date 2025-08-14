@@ -8,9 +8,9 @@ pipeline:
 
 data:
   input_path: "./data/raw/input.parquet"  # 输入数据路径，支持格式: .parquet, .xlsx, .xls, .csv
-  id_col: "id"              # ID列名
   q_col: "question"         # 问题列名  
   a_col: "answer"           # 答案列名
+  # 注意: id列不是必需的，如果不存在会自动创建行索引作为id
 
 # 三路嵌入模型配置
 embeddings:

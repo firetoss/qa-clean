@@ -119,9 +119,12 @@ def run(cfg_path: str) -> None:
         q_col = cfg.get('data.q_col', 'question')
         df[q_col] = df[q_col].astype(str).map(normalize_zh)
 
-    id_col = cfg.get('data.id_col', 'id')
     q_col = cfg.get('data.q_col', 'question')
     a_col = cfg.get('data.a_col', 'answer')
+    
+    # 确保有id列，如果没有则创建
+    if 'id' not in df.columns:
+        df['id'] = range(len(df))
 
     questions = df[q_col].tolist()
 
@@ -247,7 +250,7 @@ def run(cfg_path: str) -> None:
     # outputs
     np.save(f"{out_dir}/candidate_pairs.npy", cand_pairs_kept.astype(np.int32))
     write_parquet(meta, f"{out_dir}/candidate_pairs_meta.parquet")
-    write_parquet(df[[id_col, q_col, a_col]].copy(), f"{out_dir}/stage2_data.parquet")
+    write_parquet(df[['id', q_col, a_col]].copy(), f"{out_dir}/stage2_data.parquet")
 
     stats.update('stage2', {
         'num_questions': int(N),

@@ -6,7 +6,6 @@ pipeline:
 
 data:
   input_path: "./test_data/input.parquet"
-  id_col: "id"
   q_col: "question"
   a_col: "answer"
 

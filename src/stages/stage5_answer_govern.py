@@ -136,7 +136,6 @@ def run(cfg_path: str) -> None:
     pairs = pd.read_parquet(f"{out_dir}/pair_scores.parquet")
     clusters = pd.read_parquet(f"{out_dir}/clusters.parquet")
 
-    id_col = cfg.get('data.id_col', 'id')
     q_col = cfg.get('data.q_col', 'question')
     a_col = cfg.get('data.a_col', 'answer')
 
