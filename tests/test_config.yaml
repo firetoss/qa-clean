@@ -1,0 +1,103 @@
+# 测试配置文件 - 简化版本，用于单元测试
+pipeline:
+  language: "zh"
+  random_seed: 42
+  output_dir: "./test_outputs"
+
+data:
+  input_path: "./test_data/input.parquet"
+  id_col: "id"
+  q_col: "question"
+  a_col: "answer"
+
+# 三路嵌入模型配置（测试用）
+embeddings:
+  models:
+    a: "test-model-a"
+    b: "test-model-b"
+    c: "test-model-c"
+  batch_size: 8  # 小批次用于测试
+  device: "cpu"
+  normalize: true
+
+# 召回配置
+recall:
+  backend: "faiss"
+  topk: 50  # 小TopK用于测试
+  
+  faiss:
+    index_type: "flat_ip"
+    nlist: 100
+    nprobe: 8
+    hnsw_m: 16
+    ef_search: 50
+    persist_path: "./test_outputs/faiss.index"
+  
+  char_ngram:
+    n: 3
+    threshold: 0.45
+    short_threshold: 0.50
+    short_len: 10
+    topn_neighbors: 20
+
+# 三嵌入一致性过滤
+consistency:
+  cos_a: 0.85
+  cos_b: 0.85
+  cos_c: 0.85
+  std_max: 0.05
+  vote_2_of_3: true
+
+# 交叉编码器精排配置
+rerank:
+  ce_main: "test-ce-main"
+  ce_aux_1: "test-ce-aux1"
+  ce_aux_2: "test-ce-aux2"
+  batch_size: 8
+  device: "cpu"
+  
+  fusion:
+    weights: [0.7, 0.3]
+  
+  thresholds:
+    high: 0.80
+    mid_low: 0.75
+
+# 图聚类配置
+cluster:
+  method: "connected_components"  # 使用简单方法便于测试
+  min_cluster_size: 2
+  
+  center_constraints:
+    coverage: 0.80
+    mean: 0.80
+    median: 0.80
+    p10: 0.75
+    pair_min_for_2_nodes: 0.80
+  
+  second_merge:
+    enable: false  # 测试中禁用
+    ce_min: 0.75
+    require_consistency_vote: true
+
+# 答案治理配置
+govern:
+  number_tolerance_pct: 0.05
+  date_tolerance_days: 1
+  merge_answers: true
+  chinese_normalize: true
+  
+  detect:
+    negation: true
+    conditions: true
+    money: true
+    percent: true
+    date: true
+    range: true
+    org_loc: true
+
+# 观测与统计配置
+observe:
+  enable: true
+  save_histograms: false  # 测试中禁用图表
+  stats_path: "./test_outputs/test_stats.json"

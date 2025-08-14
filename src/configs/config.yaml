@@ -7,7 +7,7 @@ pipeline:
   output_dir: "./outputs"   # 输出目录
 
 data:
-  input_path: "./data/raw/input.parquet"  # 输入数据路径
+  input_path: "./data/raw/input.parquet"  # 输入数据路径，支持格式: .parquet, .xlsx, .xls, .csv
   id_col: "id"              # ID列名
   q_col: "question"         # 问题列名  
   a_col: "answer"           # 答案列名

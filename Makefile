@@ -40,14 +40,58 @@ clean: ## 清理 outputs 产物
 
 check: ## 依赖自检（导入核心库）
 	@echo "[check] 检查依赖..."
-	@$(PY) -c "import numpy, pandas, pyarrow, sklearn, tqdm, yaml, regex, sentence_transformers; print('[check] 依赖检查通过')"
+	@$(PY) -c "import numpy, pandas, pyarrow, sklearn, tqdm, yaml, regex, sentence_transformers, torch; print('[check] 依赖检查通过')"
+
+test: ## 运行所有单元测试
+	@echo "[test] 运行单元测试..."
+	@$(PY) tests/test_runner.py
+
+test-utils: ## 运行工具模块测试
+	@echo "[test-utils] 运行工具模块测试..."
+	@$(PY) tests/test_runner.py --category utils
+
+test-stages: ## 运行阶段模块测试
+	@echo "[test-stages] 运行阶段模块测试..."
+	@$(PY) tests/test_runner.py --category stages
+
+test-verbose: ## 运行详细测试（包含跳过的测试信息）
+	@echo "[test-verbose] 运行详细测试..."
+	@$(PY) tests/test_runner.py --verbosity 2
+
+test-quiet: ## 运行静默测试
+	@echo "[test-quiet] 运行静默测试..."
+	@$(PY) tests/test_runner.py --verbosity 0
+
+test-list: ## 列出所有测试用例
+	@echo "[test-list] 列出测试用例..."
+	@$(PY) tests/test_runner.py --list
+
+test-cn-text: ## 运行中文文本处理测试
+	@echo "[test-cn-text] 运行中文文本处理测试..."
+	@$(PY) tests/test_runner.py --module tests.utils.test_cn_text
+
+test-io: ## 运行IO工具测试
+	@echo "[test-io] 运行IO工具测试..."
+	@$(PY) tests/test_runner.py --module tests.utils.test_io_utils
+
+test-config: ## 运行配置管理测试
+	@echo "[test-config] 运行配置管理测试..."
+	@$(PY) tests/test_runner.py --module tests.utils.test_config
+
+test-sim: ## 运行文本相似度测试
+	@echo "[test-sim] 运行文本相似度测试..."
+	@$(PY) tests/test_runner.py --module tests.utils.test_text_sim
+
+test-stage1: ## 运行Stage1过滤测试
+	@echo "[test-stage1] 运行Stage1过滤测试..."
+	@$(PY) tests/test_runner.py --module tests.stages.test_stage1_filter
 
 env-cpu: ## 提示CPU环境安装命令（使用conda-forge）
 	@echo "conda create -n qa-clean-pipe python=3.11 -y && conda activate qa-clean-pipe"; \
-	echo "conda install -c conda-forge faiss-cpu numpy pandas pyarrow scikit-learn tqdm pyyaml regex -y"; \
-	echo "pip install sentence-transformers matplotlib rapidfuzz"
+	echo "conda install -c conda-forge faiss-cpu numpy pandas pyarrow openpyxl scikit-learn tqdm pyyaml regex -y"; \
+	echo "pip install sentence-transformers torch matplotlib rapidfuzz"
 
 env-gpu: ## 提示GPU环境安装命令（使用conda-forge）
 	@echo "conda create -n qa-clean-pipe python=3.11 -y && conda activate qa-clean-pipe"; \
-	echo "conda install -c conda-forge faiss-gpu numpy pandas pyarrow scikit-learn tqdm pyyaml regex -y"; \
-	echo "pip install sentence-transformers matplotlib rapidfuzz"
+	echo "conda install -c conda-forge faiss-gpu numpy pandas pyarrow openpyxl scikit-learn tqdm pyyaml regex -y"; \
+	echo "pip install sentence-transformers torch matplotlib rapidfuzz"

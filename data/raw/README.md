@@ -1,6 +1,10 @@
 # 数据目录说明
 
-请将您的中文问答数据放置到此目录下，命名为 `input.parquet`。
+请将您的中文问答数据放置到此目录下。支持多种文件格式：
+
+- `input.parquet` (推荐，性能最佳)
+- `input.xlsx` 或 `input.xls` (Excel格式)
+- `input.csv` (CSV格式，自动检测编码和分隔符)
 
 ## 数据格式要求
 
@@ -35,12 +39,18 @@ data = {
 }
 
 df = pd.DataFrame(data)
-df.to_parquet('input.parquet', index=False)
+
+# 保存为不同格式
+df.to_parquet('input.parquet', index=False)  # Parquet格式 (推荐)
+df.to_excel('input.xlsx', index=False)       # Excel格式
+df.to_csv('input.csv', index=False)          # CSV格式
 ```
 
 ## 注意事项
 
-1. 文件格式必须为 Parquet
-2. 列名必须严格匹配：`id`, `question`, `answer`
-3. 问题和答案文本建议为中文
-4. 数据量建议在1000条以上以获得更好的聚类效果
+1. **支持的文件格式**：Parquet (推荐)、Excel (.xlsx/.xls)、CSV
+2. **列名要求**：必须严格匹配 `id`, `question`, `answer`
+3. **文本语言**：问题和答案文本建议为中文
+4. **数据量建议**：1000条以上以获得更好的聚类效果
+5. **CSV文件**：程序会自动检测编码(UTF-8/GBK/GB2312)和分隔符
+6. **性能建议**：大数据量推荐使用Parquet格式，读取速度最快

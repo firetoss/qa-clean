@@ -8,7 +8,7 @@ import pandas as pd
 
 from ..utils.cn_text import filter_reason, normalize_zh
 from ..utils.config import ensure_output_dir, load_config
-from ..utils.io_utils import write_parquet
+from ..utils.io_utils import read_data_file, write_parquet
 from ..utils.metrics import StatsRecorder
 
 
@@ -16,10 +16,12 @@ def _load_or_sample(input_path: str, id_col: str, q_col: str, a_col: str) -> pd.
     try:
         if not os.path.exists(input_path):
             raise FileNotFoundError(input_path)
-        df = pd.read_parquet(input_path)
+        # 使用智能文件读取函数，支持多种格式
+        df = read_data_file(input_path)
         req = {id_col, q_col, a_col}
         if not req.issubset(df.columns):
             raise KeyError(f"缺少列: 需要 {req}，实际 {set(df.columns)}")
+        print(f"[stage1] 成功读取数据文件: {input_path}，格式: {os.path.splitext(input_path)[1]}，行数: {len(df)}")
         return df
     except Exception as e:
         print(f"[stage1] 读取 {input_path} 失败：{e}\n将生成示例数据继续流程。请替换为你的数据并包含列: {id_col},{q_col},{a_col}。")

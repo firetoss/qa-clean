@@ -1,4 +1,4 @@
-name: qa-clean-dev
+name: qa-clean-cpu
 channels:
   - conda-forge
   - pytorch
@@ -12,15 +12,11 @@ dependencies:
   - tqdm>=4.66.0  # 最新稳定版本
   - pyyaml>=6.0
   - regex>=2023.10.3  # 最新稳定版本
-  - faiss-gpu>=1.12.0  # 使用conda-forge安装FAISS GPU
+  - faiss-cpu>=1.12.0  # 使用conda-forge安装FAISS CPU
   - pyarrow>=12.0.0  # Parquet文件支持
   - pip
   - pip:
     - sentence-transformers>=2.2.2  # 最新稳定版本
     - torch>=2.1.0  # 最新稳定版本，更好的性能和稳定性
-    - ruff>=0.1.6  # 代码检查和格式化
-    - mypy>=1.7.1  # 类型检查
-    - matplotlib>=3.7.0  # 图表生成
-    - rapidfuzz>=3.5.0  # 高性能编辑距离
-    - types-tqdm  # 类型提示
-    - pandas-stubs  # pandas类型提示
+    - matplotlib>=3.7.0  # 可选图表生成
+    - rapidfuzz>=3.5.0  # 可选高性能编辑距离
