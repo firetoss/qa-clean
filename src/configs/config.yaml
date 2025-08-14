@@ -1,88 +1,112 @@
+# 中文问答净化与同义合并流水线配置
+# 本配置针对高精准场景设计，优先精度，吞吐次之
+
 pipeline:
-  language: "zh"
-  random_seed: 42
-  output_dir: "./outputs"
+  language: "zh"            # 语言：中文
+  random_seed: 42           # 随机种子，确保结果可复现
+  output_dir: "./outputs"   # 输出目录
 
 data:
-  input_path: "./data/raw/input.parquet"
-  id_col: "id"
-  q_col: "question"
-  a_col: "answer"
+  input_path: "./data/raw/input.parquet"  # 输入数据路径
+  id_col: "id"              # ID列名
+  q_col: "question"         # 问题列名  
+  a_col: "answer"           # 答案列名
 
+# 三路嵌入模型配置
 embeddings:
   models:
-    a: "BAAI/bge-large-zh-v1.5"
-    b: "moka-ai/m3e-large"
-    c: "Alibaba-NLP/gte-large-zh"
-  batch_size: 64
-  device: "cuda"
-  normalize: true
+    a: "BAAI/bge-large-zh-v1.5"     # 主召回模型（中文强语义）
+    b: "moka-ai/m3e-large"          # 一致性复核模型
+    c: "Alibaba-NLP/gte-large-zh"   # 第三路投票模型
+  batch_size: 64            # 编码批次大小，可根据显存调整：8-256
+  device: "cuda"            # 设备：cuda | cpu，GPU不可用时自动降级
+  normalize: true           # L2归一化，内积等价余弦相似度
 
+# 召回配置
 recall:
-  backend: "faiss"
-  topk: 200
+  backend: "faiss"          # 召回后端：仅支持faiss
+  topk: 200               # FAISS召回TopK，建议100-500，越大召回越全但耗时增加
+  
+  # FAISS索引配置
   faiss:
-    index_type: "flat_ip"
-    nlist: 4096
-    nprobe: 16
-    hnsw_m: 32
-    ef_search: 200
-    persist_path: "./outputs/faiss.index"
+    index_type: "flat_ip"   # 索引类型：flat_ip(最高精度) | ivf_flat_ip(大规模) | hnsw_ip(平衡)
+    nlist: 4096            # IVF训练中心数，约sqrt(N)~4*sqrt(N)，仅ivf_flat_ip生效
+    nprobe: 16             # IVF探测簇数，8-32，影响精度vs速度权衡
+    hnsw_m: 32             # HNSW连接数，16-64，仅hnsw_ip生效
+    ef_search: 200         # HNSW搜索广度，>=topk，影响精度
+    persist_path: "./outputs/faiss.index"  # 索引持久化路径
+  
+  # 字符n-gram补召配置（无分词）
   char_ngram:
-    n: 3
-    threshold: 0.45
-    short_threshold: 0.50
-    short_len: 10
-    topn_neighbors: 50
+    n: 3                   # n-gram大小，2-4，中文建议3
+    threshold: 0.45        # Jaccard阈值，0.3-0.6
+    short_threshold: 0.50  # 短句阈值，更严格避免误召
+    short_len: 10          # 短句长度判定
+    topn_neighbors: 50     # 邻域大小，在TopN内计算n-gram
 
+# 三嵌入一致性过滤（高精准核心）
 consistency:
-  cos_a: 0.875
-  cos_b: 0.870
-  cos_c: 0.870
-  std_max: 0.04
-  vote_2_of_3: true
+  cos_a: 0.875            # 模型A余弦阈值，0.85-0.90
+  cos_b: 0.870            # 模型B余弦阈值
+  cos_c: 0.870            # 模型C余弦阈值
+  std_max: 0.04           # 三模型标准差上限，0.02-0.06，越小越严格
+  vote_2_of_3: true       # 2/3投票制，false则要求3/3通过
 
+# 交叉编码器精排配置
 rerank:
-  ce_main: "BAAI/bge-reranker-large"
-  ce_aux_1: "BAAI/bge-reranker-base"
-  ce_aux_2: "cross-encoder/ms-marco-MiniLM-L-6-v2"
-  batch_size: 64
-  device: "cuda"
+  ce_main: "BAAI/bge-reranker-large"        # 主精排模型
+  ce_aux_1: "BAAI/bge-reranker-base"        # 辅助精排模型1
+  ce_aux_2: "cross-encoder/ms-marco-MiniLM-L-6-v2"  # 辅助精排模型2
+  batch_size: 64          # CE批次大小，根据显存调整：8-128
+  device: "cuda"          # 设备配置
+  
+  # 分数融合配置
   fusion:
-    weights: [0.7, 0.3]
+    weights: [0.7, 0.3]    # [主模型权重, max(辅助)权重]，和为1.0
+  
+  # 分层阈值配置
   thresholds:
-    high: 0.83
-    mid_low: 0.77
+    high: 0.83            # 高置信阈值，0.80-0.90
+    mid_low: 0.77         # 中置信阈值，0.70-0.80，低于此丢弃
 
+# 图聚类配置
 cluster:
-  method: "leiden"
-  min_cluster_size: 2
+  method: "leiden"        # 聚类方法：leiden | louvain | connected_components
+  min_cluster_size: 2     # 最小簇大小
+  
+  # 中心点约束（严格执行）
   center_constraints:
-    coverage: 0.85
-    mean: 0.85
-    median: 0.845
-    p10: 0.80
-    pair_min_for_2_nodes: 0.86
+    coverage: 0.85        # 覆盖率：中心到成员的边存在比例
+    mean: 0.85            # 平均分：中心到成员的平均CE分数
+    median: 0.845         # 中位数：中心到成员的中位CE分数
+    p10: 0.80             # 10分位数：最低10%的CE分数
+    pair_min_for_2_nodes: 0.86  # 双点簇保护：两节点簇的最低边分数
+  
+  # 二次聚合配置
   second_merge:
-    enable: true
-    ce_min: 0.81
-    require_consistency_vote: true
+    enable: true          # 是否启用子簇中心间的二次聚合
+    ce_min: 0.81          # 二次聚合CE阈值
+    require_consistency_vote: true  # 是否要求一致性投票
 
+# 答案治理配置
 govern:
-  number_tolerance_pct: 0.05
-  date_tolerance_days: 1
-  merge_answers: true
-  chinese_normalize: true
+  number_tolerance_pct: 0.05      # 数字容差：5%
+  date_tolerance_days: 1          # 日期容差：±1天
+  merge_answers: true             # 是否合并无冲突答案
+  chinese_normalize: true         # 中文标准化
+  
+  # 检测开关（当前均启用）
   detect:
-    negation: true
-    conditions: true
-    money: true
-    percent: true
-    date: true
-    range: true
-    org_loc: true
+    negation: true        # 否定词检测
+    conditions: true      # 条件词检测  
+    money: true           # 金额检测
+    percent: true         # 百分比检测
+    date: true            # 日期检测
+    range: true           # 范围检测
+    org_loc: true         # 机构地点检测
 
+# 观测与统计配置
 observe:
-  enable: true
-  save_histograms: true
-  stats_path: "./outputs/stage_stats.json"
+  enable: true            # 是否启用统计收集
+  save_histograms: true   # 是否保存分布图（需要matplotlib）
+  stats_path: "./outputs/stage_stats.json"  # 统计输出路径

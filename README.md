@@ -360,3 +360,48 @@ python src/run_all.py
 - 依赖自检：`make check`
 - 清理产物：`make clean`
 - 环境安装提示：`make env-cpu` / `make env-gpu`
+
+### 配置调优
+详见 `configs/config_variants.md`，包含：
+- 大规模数据配置 (>100万问题)
+- 低内存配置 (<8GB显存)
+- 高精度配置 (质量优先)
+- 性能优化配置 (速度优先)
+
+### 故障排除
+
+#### 常见问题与解决方案
+
+1. **FAISS安装失败**
+   ```bash
+   # GPU版本
+   conda install -c conda-forge faiss-gpu
+   # CPU版本
+   conda install -c conda-forge faiss-cpu
+   ```
+
+2. **模型下载失败**
+   - 检查网络连接
+   - 使用HuggingFace镜像：`export HF_ENDPOINT=https://hf-mirror.com`
+   - 程序会自动回退到base模型继续运行
+
+3. **内存不足**
+   - 降低batch_size：`embeddings.batch_size: 16`
+   - 使用CPU：`device: "cpu"`
+   - 减少TopK：`recall.topk: 50`
+
+4. **精度不满意**
+   - 提高阈值：参考`configs/config_variants.md`高精度配置
+   - 检查数据质量和过滤规则
+   - 调整模型组合
+
+5. **速度太慢**
+   - 使用HNSW索引：`index_type: "hnsw_ip"`
+   - 关闭二次聚合：`second_merge.enable: false`
+   - 参考性能优化配置
+
+### 日志解读
+- `[stage1]` ~ `[stage5]`: 各阶段进度
+- `GPU不可用，自动切换到CPU`: 正常降级
+- `加载xxx失败，尝试回退基础模型`: 模型自动降级
+- 统计输出在 `outputs/stage_stats.json`

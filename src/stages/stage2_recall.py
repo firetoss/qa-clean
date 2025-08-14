@@ -152,8 +152,21 @@ def run(cfg_path: str) -> None:
     # FAISS search (timed)
     provider = build_or_load_index(cfg, emb_a)
     topk = int(cfg.get('recall.topk', 200))
+    
+    # 分批检索减少内存峰值
     t2 = time.perf_counter()
-    D, I = provider.search(emb_a, topk + 1)  # include self
+    batch_size = 1024  # 每批检索的查询数量
+    D_list, I_list = [], []
+    
+    for i in range(0, len(questions), batch_size):
+        end_i = min(i + batch_size, len(questions))
+        batch_emb = emb_a[i:end_i]
+        D_batch, I_batch = provider.search(batch_emb, topk + 1)  # include self
+        D_list.append(D_batch)
+        I_list.append(I_batch)
+    
+    D = np.concatenate(D_list, axis=0)
+    I = np.concatenate(I_list, axis=0)
     t3 = time.perf_counter()
 
     # collect candidate pairs (faiss)
