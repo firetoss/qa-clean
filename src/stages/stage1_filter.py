@@ -1,0 +1,73 @@
+from __future__ import annotations
+
+import argparse
+import os
+from typing import Dict
+
+import pandas as pd
+
+from ..utils.cn_text import filter_reason, normalize_zh
+from ..utils.config import ensure_output_dir, load_config
+from ..utils.io_utils import write_parquet
+from ..utils.metrics import StatsRecorder
+
+
+def _load_or_sample(input_path: str, id_col: str, q_col: str, a_col: str) -> pd.DataFrame:
+    try:
+        if not os.path.exists(input_path):
+            raise FileNotFoundError(input_path)
+        df = pd.read_parquet(input_path)
+        req = {id_col, q_col, a_col}
+        if not req.issubset(df.columns):
+            raise KeyError(f"缺少列: 需要 {req}，实际 {set(df.columns)}")
+        return df
+    except Exception as e:
+        print(f"[stage1] 读取 {input_path} 失败：{e}\n将生成示例数据继续流程。请替换为你的数据并包含列: {id_col},{q_col},{a_col}。")
+        return pd.DataFrame({
+            id_col: [1, 2, 3, 4, 5],
+            q_col: [
+                '如何开发票', '可以报销吗', '附近哪家店比较好', '本周几点营业', '售后流程是什么'
+            ],
+            a_col: [
+                '请登录官网开具增值税电子发票', '支持按规定报销，请保留原始小票', '请提供更具体的位置或使用官网网点查询', '营业时间为工作日9:00-18:00', '售后请联系官方客服并提供订单号'
+            ],
+        })
+
+
+def run(cfg_path: str) -> None:
+    cfg = load_config(cfg_path)
+    out_dir = ensure_output_dir(cfg)
+    stats = StatsRecorder(cfg.get('observe.stats_path', f"{out_dir}/stage_stats.json"))
+
+    input_path = cfg.get('data.input_path')
+    id_col = cfg.get('data.id_col', 'id')
+    q_col = cfg.get('data.q_col', 'question')
+    a_col = cfg.get('data.a_col', 'answer')
+
+    df = _load_or_sample(input_path, id_col, q_col, a_col)
+    df[q_col] = df[q_col].astype(str).map(normalize_zh)
+
+    keep_mask = []
+    reasons: Dict[str, int] = {}
+    for q in df[q_col].tolist():
+        keep, r = filter_reason(q)
+        keep_mask.append(keep)
+        reasons[r] = reasons.get(r, 0) + 1
+
+    df_clean = df[keep_mask].reset_index(drop=True)
+    write_parquet(df_clean, f"{out_dir}/stage1_clean.parquet")
+
+    stats.update('stage1', {
+        'input_count': int(df.shape[0]),
+        'kept_count': int(df_clean.shape[0]),
+        'keep_rate': float(df_clean.shape[0] / max(1, df.shape[0])),
+        'reason_top': dict(sorted(reasons.items(), key=lambda x: x[1], reverse=True)[:20]),
+        'note': '若生成了示例数据，请替换 data/raw/input.parquet 并确保列齐全后重跑阶段1'
+    })
+
+
+if __name__ == '__main__':
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--config', default='src/configs/config.yaml')
+    args = ap.parse_args()
+    run(args.config)

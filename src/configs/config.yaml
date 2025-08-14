@@ -1,0 +1,88 @@
+pipeline:
+  language: "zh"
+  random_seed: 42
+  output_dir: "./outputs"
+
+data:
+  input_path: "./data/raw/input.parquet"
+  id_col: "id"
+  q_col: "question"
+  a_col: "answer"
+
+embeddings:
+  models:
+    a: "BAAI/bge-large-zh-v1.5"
+    b: "moka-ai/m3e-large"
+    c: "Alibaba-NLP/gte-large-zh"
+  batch_size: 64
+  device: "cuda"
+  normalize: true
+
+recall:
+  backend: "faiss"
+  topk: 200
+  faiss:
+    index_type: "flat_ip"
+    nlist: 4096
+    nprobe: 16
+    hnsw_m: 32
+    ef_search: 200
+    persist_path: "./outputs/faiss.index"
+  char_ngram:
+    n: 3
+    threshold: 0.45
+    short_threshold: 0.50
+    short_len: 10
+    topn_neighbors: 50
+
+consistency:
+  cos_a: 0.875
+  cos_b: 0.870
+  cos_c: 0.870
+  std_max: 0.04
+  vote_2_of_3: true
+
+rerank:
+  ce_main: "BAAI/bge-reranker-large"
+  ce_aux_1: "BAAI/bge-reranker-base"
+  ce_aux_2: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+  batch_size: 64
+  device: "cuda"
+  fusion:
+    weights: [0.7, 0.3]
+  thresholds:
+    high: 0.83
+    mid_low: 0.77
+
+cluster:
+  method: "leiden"
+  min_cluster_size: 2
+  center_constraints:
+    coverage: 0.85
+    mean: 0.85
+    median: 0.845
+    p10: 0.80
+    pair_min_for_2_nodes: 0.86
+  second_merge:
+    enable: true
+    ce_min: 0.81
+    require_consistency_vote: true
+
+govern:
+  number_tolerance_pct: 0.05
+  date_tolerance_days: 1
+  merge_answers: true
+  chinese_normalize: true
+  detect:
+    negation: true
+    conditions: true
+    money: true
+    percent: true
+    date: true
+    range: true
+    org_loc: true
+
+observe:
+  enable: true
+  save_histograms: true
+  stats_path: "./outputs/stage_stats.json"

@@ -272,3 +272,82 @@ MIT License
 - [moka-ai/m3e-large](https://huggingface.co/moka-ai/m3e-large) - 多语言嵌入模型
 - [FAISS](https://github.com/facebookresearch/faiss) - Facebook AI相似性搜索库
 - [pgvector](https://github.com/pgvector/pgvector) - PostgreSQL向量扩展
+
+---
+
+## 中文问答净化与同义合并流水线（仅FAISS，无分词）
+
+### 目录结构（新增）
+```
+src/
+  configs/config.yaml
+  run_all.py
+  recall/
+    base.py
+    faiss_provider.py
+  stages/
+    stage1_filter.py
+    stage2_recall.py
+    stage3_rerank.py
+    stage4_cluster.py
+    stage5_answer_govern.py
+  utils/
+    config.py
+    cn_text.py
+    text_sim.py
+    io_utils.py
+    metrics.py
+data/
+  raw/input.parquet   # 示例占位（请用自己数据替换）
+outputs/
+  figs/
+```
+
+### 依赖安装（CPU/GPU）
+- CPU：
+```bash
+conda create -n qa-clean-pipe python=3.11 -y
+conda activate qa-clean-pipe
+conda install -c conda-forge faiss-cpu numpy pandas pyarrow scikit-learn tqdm pyyaml regex -y
+pip install sentence-transformers
+# 可选
+pip install matplotlib rapidfuzz
+```
+- GPU：
+```bash
+conda create -n qa-clean-pipe python=3.11 -y
+conda activate qa-clean-pipe
+conda install -c conda-forge faiss-gpu numpy pandas pyarrow scikit-learn tqdm pyyaml regex -y
+pip install sentence-transformers
+# 可选
+pip install matplotlib rapidfuzz
+```
+
+### 数据准备
+- `data/raw/input.parquet` 必含三列：`id`, `question`, `answer`
+
+### 运行命令
+```bash
+# 逐阶段
+python src/stages/stage1_filter.py
+python src/stages/stage2_recall.py
+python src/stages/stage3_rerank.py
+python src/stages/stage4_cluster.py
+python src/stages/stage5_answer_govern.py
+
+# 一键运行
+python src/run_all.py
+```
+
+### 产物
+- `candidate_pairs.npy`
+- `candidate_pairs_meta.parquet`
+- `pair_scores.parquet`
+- `clusters.parquet`
+- `clean_answers.parquet`
+- `stage_stats.json`
+
+### 说明
+- 流水线严格不依赖中文分词，字符级归一化与 n-gram 相似补召。
+- 召回仅使用 FAISS，支持 `flat_ip / ivf_flat_ip / hnsw_ip` 并可持久化索引。
+- 高精准阈值：三嵌入一致性与 CE 分层阈值按 `src/configs/config.yaml` 默认值执行，可自行调优。
