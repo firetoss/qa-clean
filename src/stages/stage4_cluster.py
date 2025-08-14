@@ -102,7 +102,9 @@ def run(cfg_path: str) -> None:
     g = build_graph(pairs, high_th)
 
     # 聚类（fallback为连通分量）
+    method_used = cfg.get('cluster.method', 'leiden')
     comps: List[List[int]] = connected_components(g)
+    method_used = 'connected_components'
 
     # 子簇中心点约束
     cons = cfg.get('cluster.center_constraints', {})
@@ -129,18 +131,16 @@ def run(cfg_path: str) -> None:
             continue
         valid_clusters.append({'center': center, 'members': nodes, **metrics})
 
-    # 二次聚合：对子簇中心间用中置信边（ce_final≥ce_min），并可选一致性投票
+    # 二次聚合
     second_cfg = cfg.get('cluster.second_merge', {})
     if second_cfg.get('enable', True) and len(valid_clusters) >= 2:
         ce_min = float(second_cfg.get('ce_min', 0.81))
         require_vote = bool(second_cfg.get('require_consistency_vote', True))
-        # build quick lookup for ce_final between any pair
         edge_map: Dict[Tuple[int, int], float] = {}
         for i, j, s in zip(pairs['i'], pairs['j'], pairs['ce_final']):
             a, b = (int(i), int(j)) if i < j else (int(j), int(i))
-            if s >= ce_min:  # 只保留中置信及以上
+            if s >= ce_min:
                 edge_map[(a, b)] = float(s)
-        # load embeddings for consistency
         emb_a = np.load(f"{out_dir}/emb_a.npy")
         emb_b = np.load(f"{out_dir}/emb_b.npy")
         emb_c = np.load(f"{out_dir}/emb_c.npy")
@@ -149,7 +149,7 @@ def run(cfg_path: str) -> None:
         cos_b_th = float(cons_cfg.get('cos_b', 0.870))
         cos_c_th = float(cons_cfg.get('cos_c', 0.870))
         std_max = float(cons_cfg.get('std_max', 0.04))
-        vote_2_of_3 = bool(cons_cfg.get('vote_2_of_3', True))
+        vote_2 = bool(cons_cfg.get('vote_2_of_3', True))
 
         merged = True
         while merged:
@@ -157,33 +157,23 @@ def run(cfg_path: str) -> None:
             K = len(valid_clusters)
             if K <= 1:
                 break
-            # 尝试两两聚合
-            idx = list(range(K))
             done = False
-            for x in idx:
-                for y in idx:
-                    if y <= x:
-                        continue
+            for x in range(K):
+                for y in range(x + 1, K):
                     cx = valid_clusters[x]['center']
                     cy = valid_clusters[y]['center']
                     a, b = (min(cx, cy), max(cx, cy))
                     ce = edge_map.get((a, b), 0.0)
                     if ce < ce_min:
                         continue
-                    if require_vote:
-                        if not consistency_vote(cx, cy, emb_a, emb_b, emb_c, std_max, cos_a_th, cos_b_th, cos_c_th, vote_2_of_3):
-                            continue
-                    # 尝试合并
+                    if require_vote and not consistency_vote(cx, cy, emb_a, emb_b, emb_c, std_max, cos_a_th, cos_b_th, cos_c_th, vote_2):
+                        continue
                     new_nodes = sorted(set(valid_clusters[x]['members']) | set(valid_clusters[y]['members']))
                     ok, center_new, metrics_new = validate_cluster(new_nodes, g, cons)
                     if not ok:
                         continue
-                    # 接受合并
                     new_entry = {'center': center_new, 'members': new_nodes, **metrics_new}
-                    keep = []
-                    for k in range(K):
-                        if k not in (x, y):
-                            keep.append(valid_clusters[k])
+                    keep = [valid_clusters[k] for k in range(K) if k not in (x, y)]
                     keep.append(new_entry)
                     valid_clusters = keep
                     merged = True
@@ -210,6 +200,7 @@ def run(cfg_path: str) -> None:
     # 统计与图表
     stats_dict = {
         'num_clusters': int(len(valid_clusters)),
+        'cluster_method': method_used,
     }
     sizes = [len(m['members']) for m in valid_clusters]
     if sizes:

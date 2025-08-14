@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import itertools
+import time
 from typing import Dict, List, Set, Tuple
 
 import numpy as np
@@ -124,15 +125,17 @@ def run(cfg_path: str) -> None:
 
     questions = df[q_col].tolist()
 
-    # embeddings
+    # embeddings (timed)
     em_cfg = cfg.get('embeddings', {})
     bs = em_cfg.get('batch_size', 64)
     device = em_cfg.get('device', 'cuda')
     models = em_cfg.get('models', {})
 
+    t0 = time.perf_counter()
     emb_a = batch_encode(models.get('a', FALLBACK_EMB['a']), questions, device, bs)
     emb_b = batch_encode(models.get('b', FALLBACK_EMB['b']), questions, device, bs)
     emb_c = batch_encode(models.get('c', FALLBACK_EMB['c']), questions, device, bs)
+    t1 = time.perf_counter()
 
     if cfg.get('embeddings.normalize', True):
         def l2n(x):
@@ -146,10 +149,12 @@ def run(cfg_path: str) -> None:
     save_npy(f"{out_dir}/emb_b.npy", emb_b)
     save_npy(f"{out_dir}/emb_c.npy", emb_c)
 
-    # FAISS search
+    # FAISS search (timed)
     provider = build_or_load_index(cfg, emb_a)
     topk = int(cfg.get('recall.topk', 200))
+    t2 = time.perf_counter()
     D, I = provider.search(emb_a, topk + 1)  # include self
+    t3 = time.perf_counter()
 
     # collect candidate pairs (faiss)
     faiss_pairs: List[Tuple[int, int]] = []
@@ -240,6 +245,8 @@ def run(cfg_path: str) -> None:
         'pairs_kept_consistency': int(cand_pairs_kept.shape[0]),
         'self_removed': int(self_removed),
         'ngram_hits': int(ngram_hits),
+        'encode_seconds': float(t1 - t0),
+        'search_seconds': float(t3 - t2),
         'note': '若大模型下载失败，已尝试回退到base模型；可在config修改模型名后重跑'
     })
 

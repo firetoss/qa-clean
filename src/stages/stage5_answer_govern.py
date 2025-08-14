@@ -15,6 +15,7 @@ from ..utils.metrics import StatsRecorder
 
 MONEY_RE = re.compile(r"(?:人民币|RMB|￥)?\s*([0-9]+(?:\.[0-9]+)?)\s*(元|块|万元|千元|角|分)?")
 PCT_RE = re.compile(r"([0-9]+(?:\.[0-9]+)?)%")
+DATE_YMD_RE = re.compile(r"(\d{4})年(\d{1,2})月(?:(\d{1,2})日)?")
 DATE_WORDS = [
     '本周', '下周', '月底', '年初', '当月', '次月'
 ]
@@ -27,7 +28,7 @@ def extract_signals(s: str) -> Dict[str, List[str]]:
     s = normalize_zh(s)
     money = [m.group(0) for m in MONEY_RE.finditer(s)]
     pct = [m.group(0) for m in PCT_RE.finditer(s)]
-    dates = [w for w in DATE_WORDS if w in s]
+    dates = [m.group(0) for m in DATE_YMD_RE.finditer(s)] + [w for w in DATE_WORDS if w in s]
     neg = [w for w in NEG_WORDS if w in s]
     cond = [w for w in COND_WORDS if w in s]
     orgloc = [w for w in ORG_LOC_SUFFIX if w in s]
@@ -43,7 +44,34 @@ def extract_signals(s: str) -> Dict[str, List[str]]:
     }
 
 
-def hard_conflict(a: Dict[str, List[str]], b: Dict[str, List[str]], tol_pct: float) -> bool:
+def _ymd_to_tuple(d: str) -> Tuple[int, int, int]:
+    m = DATE_YMD_RE.search(d)
+    if not m:
+        return (0, 0, 0)
+    y = int(m.group(1))
+    mo = int(m.group(2))
+    da = int(m.group(3)) if m.group(3) else 1
+    return (y, mo, da)
+
+
+def _date_within_tolerance(a: str, b: str, tol_days: int = 1) -> bool:
+    # 简化：仅比较YYYY年MM月(DD日)，并允许±1天
+    ya, ma, da = _ymd_to_tuple(a)
+    yb, mb, db = _ymd_to_tuple(b)
+    if (ya, ma, da) == (0, 0, 0) or (yb, mb, db) == (0, 0, 0):
+        # 若非标准日期，退化为近似关键字：本周/下周/月内等，认为可容忍
+        return True
+    try:
+        import datetime as dt
+
+        da_ = dt.date(ya, ma, da)
+        db_ = dt.date(yb, mb, db)
+        return abs((da_ - db_).days) <= tol_days
+    except Exception:
+        return True
+
+
+def hard_conflict(a: Dict[str, List[str]], b: Dict[str, List[str]], tol_pct: float, tol_days: int) -> bool:
     # money conflict if numeric sets differ > tol
     def nums(vals: List[str]) -> List[float]:
         out = []
@@ -54,7 +82,6 @@ def hard_conflict(a: Dict[str, List[str]], b: Dict[str, List[str]], tol_pct: flo
     am = nums(a.get('money', [])) or [float(x) for x in a.get('nums', [])]
     bm = nums(b.get('money', [])) or [float(x) for x in b.get('nums', [])]
     if am and bm:
-        # compare first numbers
         x, y = am[0], bm[0]
         if x == 0 and y == 0:
             pass
@@ -64,11 +91,23 @@ def hard_conflict(a: Dict[str, List[str]], b: Dict[str, List[str]], tol_pct: flo
     # negation vs affirmation
     if (a.get('neg') and not b.get('neg')) or (b.get('neg') and not a.get('neg')):
         return True
+    # date: check overlap/close
+    ad, bd = a.get('date', []), b.get('date', [])
+    if ad and bd:
+        ok = False
+        for x in ad:
+            for y in bd:
+                if _date_within_tolerance(x, y, tol_days=tol_days):
+                    ok = True
+                    break
+            if ok:
+                break
+        if not ok:
+            return True
     return False
 
 
 def pick_representative(answers: List[str]) -> str:
-    # choose the most frequent normalized answer
     counts: Dict[str, int] = {}
     for s in answers:
         n = normalize_zh(s)
@@ -77,7 +116,6 @@ def pick_representative(answers: List[str]) -> str:
 
 
 def merge_answers(answers: List[str]) -> str:
-    # rule-based merge: unique key phrases from signals
     keyset = []
     for s in answers:
         s = normalize_zh(s)
@@ -102,9 +140,8 @@ def run(cfg_path: str) -> None:
     q_col = cfg.get('data.q_col', 'question')
     a_col = cfg.get('data.a_col', 'answer')
 
-    df = stage2.reset_index().rename(columns={'index': 'row_id'})
-
     tol_pct = float(cfg.get('govern.number_tolerance_pct', 0.05))
+    tol_days = int(cfg.get('govern.date_tolerance_days', 1))
 
     rows = []
     conflict_count = 0
@@ -112,11 +149,10 @@ def run(cfg_path: str) -> None:
         members = [int(x) for x in c['members']]
         answers = [stage2.iloc[m][a_col] for m in members]
         signals = [extract_signals(a) for a in answers]
-        # conflict check pairwise
         conflict = False
         for i in range(len(signals)):
             for j in range(i + 1, len(signals)):
-                if hard_conflict(signals[i], signals[j], tol_pct):
+                if hard_conflict(signals[i], signals[j], tol_pct, tol_days):
                     conflict = True
                     break
             if conflict:
