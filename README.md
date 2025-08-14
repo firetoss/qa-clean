@@ -351,3 +351,12 @@ python src/run_all.py
 - 流水线严格不依赖中文分词，字符级归一化与 n-gram 相似补召。
 - 召回仅使用 FAISS，支持 `flat_ip / ivf_flat_ip / hnsw_ip` 并可持久化索引。
 - 高精准阈值：三嵌入一致性与 CE 分层阈值按 `src/configs/config.yaml` 默认值执行，可自行调优。
+
+### Makefile 使用
+- 查看帮助：`make help`
+- 一键运行（模块方式）：`make run`
+- 一键运行（脚本方式）：`make pipeline`
+- 分阶段：`make stage1` ~ `make stage5`
+- 依赖自检：`make check`
+- 清理产物：`make clean`
+- 环境安装提示：`make env-cpu` / `make env-gpu`

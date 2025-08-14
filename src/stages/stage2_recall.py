@@ -71,14 +71,22 @@ def build_or_load_index(cfg, emb_a: np.ndarray) -> FaissProvider:
         device=_ensure_device(cfg.get('embeddings.device', 'cuda')),
     )
     persist = faiss_cfg.get('persist_path', './outputs/faiss.index')
-    if provider.load(persist, xb_dim=emb_a.shape[1]):
-        return provider
-    provider.build(emb_a)
     try:
-        provider.save(persist)
-    except Exception:
-        pass
-    return provider
+        if provider.load(persist, xb_dim=emb_a.shape[1]):
+            return provider
+        provider.build(emb_a)
+        try:
+            provider.save(persist)
+        except Exception:
+            pass
+        return provider
+    except Exception as e:
+        raise RuntimeError(
+            f"[stage2] 构建或加载FAISS索引失败：{e}\n"
+            "请确认已通过 conda-forge 安装FAISS：\n"
+            "  GPU: conda install -c conda-forge faiss-gpu\n  CPU: conda install -c conda-forge faiss-cpu\n"
+            "若仍失败，请将 recall.faiss.index_type 改为 flat_ip 并重试"
+        )
 
 
 def dedup_pairs(pairs: List[Tuple[int, int]]) -> np.ndarray:
