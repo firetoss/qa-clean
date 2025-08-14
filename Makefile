@@ -39,26 +39,8 @@ clean: ## 清理 outputs 产物
 	@echo "[clean] 已清理 outputs/*"
 
 check: ## 依赖自检（导入核心库）
-	@$(PY) - <<'PY'
-import importlib, sys
-mods = [
-    'numpy','pandas','pyarrow','sklearn','tqdm','yaml','regex',
-    'sentence_transformers'
-]
-failed = []
-for m in mods:
-    try:
-        importlib.import_module(m)
-    except Exception as e:
-        failed.append((m, str(e)))
-if failed:
-    print('[check] 缺少依赖:')
-    for m, e in failed:
-        print('  -', m, '->', e)
-    sys.exit(1)
-else:
-    print('[check] 依赖检查通过')
-PY
+	@echo "[check] 检查依赖..."
+	@$(PY) -c "import numpy, pandas, pyarrow, sklearn, tqdm, yaml, regex, sentence_transformers; print('[check] 依赖检查通过')"
 
 env-cpu: ## 提示CPU环境安装命令（使用conda-forge）
 	@echo "conda create -n qa-clean-pipe python=3.11 -y && conda activate qa-clean-pipe"; \
