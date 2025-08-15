@@ -104,7 +104,7 @@ def dedup_pairs(pairs: List[Tuple[int, int]]) -> np.ndarray:
     return arr
 
 
-def run(cfg_path: str) -> None:
+def run(cfg_path: str, input_file: str = None) -> None:
     cfg = load_config(cfg_path)
     out_dir = ensure_output_dir(cfg)
     stats = StatsRecorder(cfg.get('observe.stats_path', f"{out_dir}/stage_stats.json"))
@@ -114,8 +114,10 @@ def run(cfg_path: str) -> None:
     try:
         df = pd.read_parquet(stage1_path)
     except Exception:
-        input_path = cfg.get('data.input_path')
-        df = pd.read_parquet(input_path)
+        # 使用命令行参数的输入文件，如果没有则使用配置文件中的路径
+        input_path = input_file if input_file else cfg.get('data.input_path')
+        from src.utils.io_utils import read_data_file
+        df = read_data_file(input_path)
         q_col = cfg.get('data.q_col', 'question')
         df[q_col] = df[q_col].astype(str).map(normalize_zh)
 
@@ -270,5 +272,6 @@ def run(cfg_path: str) -> None:
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--config', default='src/configs/config.yaml')
+    ap.add_argument('--input', help='输入数据文件路径（覆盖配置文件中的设置）')
     args = ap.parse_args()
-    run(args.config)
+    run(args.config, args.input)

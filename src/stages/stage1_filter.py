@@ -42,12 +42,13 @@ def _load_or_sample(input_path: str, q_col: str, a_col: str) -> pd.DataFrame:
         })
 
 
-def run(cfg_path: str) -> None:
+def run(cfg_path: str, input_file: str = None) -> None:
     cfg = load_config(cfg_path)
     out_dir = ensure_output_dir(cfg)
     stats = StatsRecorder(cfg.get('observe.stats_path', f"{out_dir}/stage_stats.json"))
 
-    input_path = cfg.get('data.input_path')
+    # 使用命令行参数的输入文件，如果没有则使用配置文件中的路径
+    input_path = input_file if input_file else cfg.get('data.input_path')
     q_col = cfg.get('data.q_col', 'question')
     a_col = cfg.get('data.a_col', 'answer')
 
@@ -76,5 +77,6 @@ def run(cfg_path: str) -> None:
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--config', default='src/configs/config.yaml')
+    ap.add_argument('--input', help='输入数据文件路径（覆盖配置文件中的设置）')
     args = ap.parse_args()
-    run(args.config)
+    run(args.config, args.input)

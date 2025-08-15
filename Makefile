@@ -2,6 +2,7 @@
 
 PY ?= python
 CFG ?= src/configs/config.yaml
+INPUT ?= 
 
 .PHONY: help init pipeline run stage1 stage2 stage3 stage4 stage5 clean check env-cpu env-gpu
 
@@ -13,25 +14,53 @@ init: ## 初始化目录结构（data/raw 与 outputs/figs）
 	@echo "[init] 确保目录已就绪：data/raw, outputs/figs"
 
 pipeline: ## 通过脚本顺序运行五个阶段
-	@bash scripts/run_pipeline.sh $(CFG)
+	@if [ -n "$(INPUT)" ]; then \
+		bash scripts/run_pipeline.sh $(CFG) $(INPUT); \
+	else \
+		bash scripts/run_pipeline.sh $(CFG); \
+	fi
 
 run: ## 通过模块一键运行（与 pipeline 等价）
-	@$(PY) src/run_all.py $(CFG)
+	@if [ -n "$(INPUT)" ]; then \
+		$(PY) src/run_all.py --config $(CFG) --input $(INPUT); \
+	else \
+		$(PY) src/run_all.py --config $(CFG); \
+	fi
 
 stage1: ## 运行阶段1：字符级预处理与过滤
-	@$(PY) -m src.stages.stage1_filter --config $(CFG)
+	@if [ -n "$(INPUT)" ]; then \
+		$(PY) -m src.stages.stage1_filter --config $(CFG) --input $(INPUT); \
+	else \
+		$(PY) -m src.stages.stage1_filter --config $(CFG); \
+	fi
 
 stage2: ## 运行阶段2：三路嵌入+FAISS召回+字符n-gram补召
-	@$(PY) -m src.stages.stage2_recall --config $(CFG)
+	@if [ -n "$(INPUT)" ]; then \
+		$(PY) -m src.stages.stage2_recall --config $(CFG) --input $(INPUT); \
+	else \
+		$(PY) -m src.stages.stage2_recall --config $(CFG); \
+	fi
 
 stage3: ## 运行阶段3：多交叉编码器融合精排
-	@$(PY) -m src.stages.stage3_rerank --config $(CFG)
+	@if [ -n "$(INPUT)" ]; then \
+		$(PY) -m src.stages.stage3_rerank --config $(CFG) --input $(INPUT); \
+	else \
+		$(PY) -m src.stages.stage3_rerank --config $(CFG); \
+	fi
 
 stage4: ## 运行阶段4：图聚类 + 中心约束 + 二次聚合
-	@$(PY) -m src.stages.stage4_cluster --config $(CFG)
+	@if [ -n "$(INPUT)" ]; then \
+		$(PY) -m src.stages.stage4_cluster --config $(CFG) --input $(INPUT); \
+	else \
+		$(PY) -m src.stages.stage4_cluster --config $(CFG); \
+	fi
 
 stage5: ## 运行阶段5：答案治理与融合
-	@$(PY) -m src.stages.stage5_answer_govern --config $(CFG)
+	@if [ -n "$(INPUT)" ]; then \
+		$(PY) -m src.stages.stage5_answer_govern --config $(CFG) --input $(INPUT); \
+	else \
+		$(PY) -m src.stages.stage5_answer_govern --config $(CFG); \
+	fi
 
 clean: ## 清理 outputs 产物
 	@rm -rf outputs/*

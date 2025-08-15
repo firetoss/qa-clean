@@ -79,17 +79,27 @@ conda activate qa-clean-pipe
 # - input.csv (CSV格式，自动检测编码和分隔符)
 # 必须包含列：question, answer（id列可选，无则自动创建）
 
-# 一键运行流水线
+# 一键运行流水线（使用配置文件中的输入路径）
 make run
 # 或
-python src/run_all.py
+python src/run_all.py --config src/configs/config.yaml
 
-# 分阶段运行
+# 指定输入文件运行（推荐）
+make run INPUT=./data/raw/qa.xlsx
+# 或
+python src/run_all.py --config src/configs/config.yaml --input ./data/raw/qa.xlsx
+
+# 分阶段运行（使用配置文件中的输入路径）
 make stage1  # 字符级预处理与过滤
 make stage2  # 三路嵌入+FAISS召回+字符n-gram补召
 make stage3  # 多交叉编码器融合精排
 make stage4  # 图聚类+中心约束+二次聚合
 make stage5  # 答案治理与融合
+
+# 分阶段运行（指定输入文件）
+make stage1 INPUT=./data/raw/qa.xlsx
+make stage2 INPUT=./data/raw/qa.xlsx
+# ... 其他阶段类似
 
 # 查看结果
 ls outputs/  # 所有产物：.npy, .parquet, .json, 图表
@@ -102,6 +112,29 @@ ls outputs/  # 所有产物：.npy, .parquet, .json, 图表
 - `question`: 问题文本（必需）
 - `answer`: 答案文本（必需）
 - `id`: 唯一标识符（可选，无则自动创建行索引）
+
+### 命令行参数说明
+
+**方式1：使用配置文件中的输入路径**
+```bash
+# 修改 src/configs/config.yaml 中的 input_path
+python src/run_all.py --config src/configs/config.yaml
+```
+
+**方式2：直接指定输入文件（推荐）**
+```bash
+# 直接指定输入文件，无需修改配置文件
+python src/run_all.py --config src/configs/config.yaml --input ./data/raw/qa.xlsx
+```
+
+**使用Makefile**
+```bash
+# 使用配置文件中的路径
+make run
+
+# 指定输入文件
+make run INPUT=./data/raw/qa.xlsx
+```
 
 ### 支持的文件格式
 

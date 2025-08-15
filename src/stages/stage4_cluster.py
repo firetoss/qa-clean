@@ -90,7 +90,7 @@ def consistency_vote(i: int, j: int, emb_a: np.ndarray, emb_b: np.ndarray, emb_c
     return ((votes >= 2) if vote_2_of_3 else (votes == 3)) and (std <= std_max)
 
 
-def run(cfg_path: str) -> None:
+def run(cfg_path: str, input_file: str = None) -> None:
     cfg = load_config(cfg_path)
     out_dir = ensure_output_dir(cfg)
     stats = StatsRecorder(cfg.get('observe.stats_path', f"{out_dir}/stage_stats.json"))
@@ -222,5 +222,6 @@ def run(cfg_path: str) -> None:
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--config', default='src/configs/config.yaml')
+    ap.add_argument('--input', help='输入数据文件路径（覆盖配置文件中的设置）')
     args = ap.parse_args()
-    run(args.config)
+    run(args.config, args.input)

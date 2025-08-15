@@ -53,7 +53,7 @@ def batch_ce_scores(model_name: str, pairs: List[Tuple[str, str]], device: str, 
     return np.asarray(scores, dtype=np.float32)
 
 
-def run(cfg_path: str) -> None:
+def run(cfg_path: str, input_file: str = None) -> None:
     cfg = load_config(cfg_path)
     out_dir = ensure_output_dir(cfg)
     stats = StatsRecorder(cfg.get('observe.stats_path', f"{out_dir}/stage_stats.json"))
@@ -115,5 +115,6 @@ def run(cfg_path: str) -> None:
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--config', default='src/configs/config.yaml')
+    ap.add_argument('--input', help='输入数据文件路径（覆盖配置文件中的设置）')
     args = ap.parse_args()
-    run(args.config)
+    run(args.config, args.input)
