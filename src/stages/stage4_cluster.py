@@ -62,39 +62,11 @@ def run(cfg_path: str, input_file: str = None, n_jobs: Optional[int] = None) -> 
     cfg = load_config(cfg_path)
     engine = cfg.get('cluster.engine', 'networkx').lower()
     
-    print(f"[stage4] 聚类引擎选择: {engine}")
     
     # NetworkX引擎：高质量社区发现，支持多种算法
     if engine == 'networkx':
         try:
             from .stage4_cluster_networkx import run as run_networkx
-            print("[stage4] 加载NetworkX聚类引擎")
-            run_networkx(cfg_path, input_file, n_jobs)
-        except ImportError as e:
-            print(f"[stage4] NetworkX引擎依赖缺失: {e}")
-            print("[stage4] 自动回退到并行引擎")
-            from .stage4_cluster_parallel import run as run_parallel
-            run_parallel(cfg_path, input_file, n_jobs)
-            
-    # 并行引擎：多核优化的连通分量算法
-    elif engine == 'parallel':
-        from .stage4_cluster_parallel import run as run_parallel
-        print("[stage4] 加载并行聚类引擎")
-        run_parallel(cfg_path, input_file, n_jobs)
-        
-    # 原始引擎：最小依赖的单核连通分量算法
-    elif engine == 'original':
-        from .stage4_cluster_original import run as run_original
-        print("[stage4] 加载原始聚类引擎")
-        run_original(cfg_path, input_file)
-        
-    else:
-        supported_engines = ['networkx', 'parallel', 'original']
-        raise ValueError(
-            f"不支持的聚类引擎: {engine}. "
-            f"支持的引擎: {', '.join(supported_engines)}"
-        )
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

@@ -72,10 +72,6 @@ def run(cfg_path: str, input_file: str = None) -> None:
 
     text_pairs: List[Tuple[str, str]] = [(ques[i], ques[j]) for i, j in pairs]
 
-    ce_main = batch_ce_scores(rerank_cfg.get('ce_main', FALLBACK_CE['ce_main']), text_pairs, device, bs)
-    ce_aux1 = batch_ce_scores(rerank_cfg.get('ce_aux_1', FALLBACK_CE['ce_aux_1']), text_pairs, device, bs)
-    ce_aux2 = batch_ce_scores(rerank_cfg.get('ce_aux_2', FALLBACK_CE['ce_aux_2']), text_pairs, device, bs)
-
     w_main, w_aux = rerank_cfg.get('fusion', {}).get('weights', [0.7, 0.3])
     ce_aux_max = np.maximum(ce_aux1, ce_aux2)
     ce_final = w_main * ce_main + w_aux * ce_aux_max
@@ -95,8 +91,6 @@ def run(cfg_path: str, input_file: str = None) -> None:
 
     # drop low
     out = out[out['label'] != 'low'].reset_index(drop=True)
-    write_parquet(out, f"{out_dir}/pair_scores.parquet")
-
     # stats & optional figs
     stats.update('stage3', {
         'num_pairs_input': int(len(pairs)),

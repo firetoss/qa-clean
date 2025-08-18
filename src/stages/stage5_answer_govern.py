@@ -132,10 +132,6 @@ def run(cfg_path: str, input_file: str = None) -> None:
     out_dir = ensure_output_dir(cfg)
     stats = StatsRecorder(cfg.get('observe.stats_path', f"{out_dir}/stage_stats.json"))
 
-    stage2 = pd.read_parquet(f"{out_dir}/stage2_data.parquet")
-    pairs = pd.read_parquet(f"{out_dir}/pair_scores.parquet")
-    clusters = pd.read_parquet(f"{out_dir}/clusters.parquet")
-
     q_col = cfg.get('data.q_col', 'question')
     a_col = cfg.get('data.a_col', 'answer')
 
@@ -170,8 +166,6 @@ def run(cfg_path: str, input_file: str = None) -> None:
         })
 
     out = pd.DataFrame(rows)
-    write_parquet(out, f"{out_dir}/clean_answers.parquet")
-
     stats.update('stage5', {
         'num_clusters': int(clusters.shape[0]),
         'conflict_clusters': int(conflict_count),

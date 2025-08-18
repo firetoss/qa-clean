@@ -687,10 +687,8 @@ def run(cfg_path: str, input_file: str = None, n_jobs: Optional[int] = None) -> 
                 n_jobs = mp.cpu_count()
     n_jobs = max(1, min(n_jobs, mp.cpu_count()))
     
-    print(f"[stage4] 使用NetworkX + {n_jobs} 个CPU核心进行并行聚类")
     
     pairs = pd.read_parquet(f"{out_dir}/pair_scores.parquet")
-    print(f"[stage4] 加载 {len(pairs)} 个相似对")
 
     # GPU/CPU路径选择
     high_th = float(cfg.get('rerank.thresholds.high', 0.83))
@@ -701,84 +699,36 @@ def run(cfg_path: str, input_file: str = None, n_jobs: Optional[int] = None) -> 
     
     # GPU状态日志
     if enable_gpu:
-        print("[stage4] ✅ GPU图计算加速已启用 (cuGraph/cudf)")
-        print(f"[stage4] 预期性能提升: 10-100x (相比CPU，取决于图规模)")
     else:
         if enable_gpu_config and not gpu_available:
-            print("[stage4] ⚠️  配置要求GPU但环境不支持，自动回退到CPU")
-            print("[stage4] 💡 提示: 安装 RAPIDS cuGraph/cudf 以启用GPU加速")
         else:
-            print("[stage4] 🖥️  使用CPU NetworkX路径")
 
     # CPU路径需要预先构建NetworkX图用于验证和二次聚合
     if not enable_gpu:
-        G = build_networkx_graph(pairs, high_th)
-
     # 选择聚类方法
     cluster_method = cfg.get('cluster.method', 'leiden').lower()
     resolution = float(cfg.get('cluster.resolution', 1.0))
     use_parallel = cfg.get('cluster.use_parallel', True)
     
-    print(f"[stage4] 使用聚类方法: {cluster_method}")
     
     # 执行聚类（GPU优先，自动回退）
     if enable_gpu:
         try:
-            print(f"[stage4] 🚀 执行GPU {cluster_method.upper()} 聚类...")
             
             if cluster_method == 'leiden':
-                communities = leiden_gpu(pairs, high_th, resolution)
-                method_used = 'leiden_gpu'
-            elif cluster_method == 'louvain':
-                communities = louvain_gpu(pairs, high_th, resolution)
-                method_used = 'louvain_gpu'
-            else:  # connected_components
-                communities = connected_components_gpu(pairs, high_th)
-                method_used = 'connected_components_gpu'
-                
-            print(f"[stage4] ✅ GPU聚类成功完成")
-            
-        except Exception as e:
-            print(f"[stage4] ❌ GPU聚类失败: {e}")
-            print(f"[stage4] 🔄 自动回退到CPU NetworkX路径...")
-            enable_gpu = False
-            # 构建CPU图用于回退
-            G = build_networkx_graph(pairs, high_th)
-
     if not enable_gpu:
         if use_parallel and G.number_of_nodes() > 100:
-            communities = parallel_subgraph_clustering(G, cluster_method, resolution, n_jobs)
-            method_used = f'{cluster_method}_parallel'
-        else:
-            if cluster_method == 'leiden':
-                communities = leiden_clustering_parallel(G, resolution)
-            elif cluster_method == 'louvain':
-                communities = louvain_clustering_parallel(G, resolution)
-            else:
-                communities = connected_components_networkx(G)
-            method_used = f'{cluster_method}_serial'
-    
-    print(f"[stage4] 聚类完成，发现 {len(communities)} 个社区/连通分量")
-
     # 并行簇验证（GPU路径下仍在CPU上完成质量验证，因涉及NetworkX图操作）
     cons = cfg.get('cluster.center_constraints', {})
     min_cluster_size = int(cfg.get('cluster.min_cluster_size', 2))
     
     if not enable_gpu and use_parallel and len(communities) > 10:
-        print("[stage4] 使用并行簇验证")
         valid_clusters = validate_clusters_networkx_parallel(communities, G, cons, min_cluster_size, n_jobs)
     else:
-        print("[stage4] 使用串行簇验证")
         # 如果来自GPU路径，没有NetworkX图，则临时构建用于验证的图（仅需要边权）
-        G_for_validate = G if not enable_gpu else build_networkx_graph(pairs, high_th)
-        valid_clusters = validate_clusters_networkx_serial(communities, G_for_validate, cons, min_cluster_size)
-    
-    print(f"[stage4] 验证后保留 {len(valid_clusters)} 个有效簇")
-
     # 二次聚合（基于NetworkX图）
     second_cfg = cfg.get('cluster.second_merge', {})
     if second_cfg.get('enable', True) and len(valid_clusters) >= 2:
-        print("[stage4] 开始基于NetworkX的二次聚合...")
         ce_min = float(second_cfg.get('ce_min', 0.81))
         require_vote = bool(second_cfg.get('require_consistency_vote', True))
         
@@ -803,7 +753,6 @@ def run(cfg_path: str, input_file: str = None, n_jobs: Optional[int] = None) -> 
             if K <= 1:
                 break
             
-            print(f"[stage4] NetworkX二次聚合第 {merge_rounds} 轮，当前簇数: {K}")
             
             done = False
             for x in range(K):
@@ -837,7 +786,6 @@ def run(cfg_path: str, input_file: str = None, n_jobs: Optional[int] = None) -> 
                 if done:
                     break
         
-        print(f"[stage4] NetworkX二次聚合完成，最终簇数: {len(valid_clusters)}")
 
     # 输出
     clusters_rows = []
@@ -875,7 +823,6 @@ def run(cfg_path: str, input_file: str = None, n_jobs: Optional[int] = None) -> 
         stats_dict.update({'size_p50': 0.0, 'size_p90': 0.0, 'size_max': 0})
 
     stats.update('stage4', stats_dict)
-    print(f"[stage4] NetworkX聚类完成，最终输出 {len(valid_clusters)} 个簇")
 
 
 if __name__ == '__main__':
