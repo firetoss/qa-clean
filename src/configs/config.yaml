@@ -71,8 +71,30 @@ rerank:
 
 # 图聚类配置
 cluster:
+  # 聚类引擎选择 (三种可选方案)
+  engine: "networkx"      # 聚类引擎：networkx | parallel | original
+                          # networkx: 使用NetworkX库，支持leiden/louvain/connected_components (推荐)
+                          #          依赖: networkx, python-igraph, leidenalg
+                          #          特点: 高质量社区发现，算法丰富，内存使用较多
+                          # parallel: 自实现多核并行连通分量算法 (高性能)
+                          #          依赖: 无额外依赖
+                          #          特点: 性能优秀，内存友好，仅连通分量聚类
+                          # original: 原始单核连通分量算法 (最小依赖)
+                          #          依赖: 无额外依赖
+                          #          特点: 兼容性最佳，性能较低，适合小数据集
+  
   method: "leiden"        # 聚类方法：leiden | louvain | connected_components
   min_cluster_size: 2     # 最小簇大小
+  
+  # 并行计算配置
+  use_parallel: true      # 是否启用并行计算（节点数>100时自动启用）
+  n_jobs: -1              # 并行进程数：-1为所有CPU核心，或指定具体数字
+  resolution: 1.0         # 聚类分辨率参数，越大簇越小（适用于Leiden/Louvain）
+  
+  # GPU加速（默认开启，自动回退CPU）
+  enable_gpu: true        # 是否启用GPU图聚类加速（需要安装 RAPIDS: cudf/cugraph）
+                          # - true: (默认) 若检测到cugraph/cudf则优先使用GPU Louvain/Leiden/连通分量
+                          # - false: 仅使用CPU路径
   
   # 中心点约束（严格执行）
   center_constraints:

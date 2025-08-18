@@ -1,5 +1,6 @@
 name: qa-clean
 channels:
+  - rapidsai  # RAPIDS GPU加速库
   - conda-forge
   - pytorch
   - defaults
@@ -14,9 +15,21 @@ dependencies:
   - regex>=2023.10.3  # 最新稳定版本
   - faiss-gpu>=1.12.0  # 使用conda-forge安装FAISS GPU
   - pyarrow>=12.0.0  # Parquet文件支持
+  
+  # NetworkX聚类引擎依赖
+  - networkx>=3.0  # 图算法库
+  
+  # GPU图计算加速 (可选，需要NVIDIA GPU)
+  - cudf>=23.10  # GPU DataFrame，RAPIDS组件
+  - cugraph>=23.10  # GPU图算法，RAPIDS组件
+  
   - pip
   - pip:
     - sentence-transformers>=2.2.2  # 最新稳定版本
     - torch>=2.1.0  # 最新稳定版本，更好的性能和稳定性
     - matplotlib>=3.7.0  # 可选图表生成
     - rapidfuzz>=3.5.0  # 可选高性能编辑距离
+    
+    # CPU Leiden算法支持 (可选)
+    - python-igraph>=0.10.0  # igraph Python绑定
+    - leidenalg>=0.9.0  # Leiden聚类算法

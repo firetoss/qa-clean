@@ -1,6 +1,6 @@
 # 中文问答净化流水线依赖（pip回退安装，推荐使用conda）
 # Python 3.11+ 支持
-# 注意：FAISS必须通过conda-forge安装，pip无法安装
+# 注意：FAISS和RAPIDS组件必须通过conda安装，pip无法安装
 
 # 核心依赖
 pandas>=2.1.0
@@ -14,12 +14,28 @@ tqdm>=4.66.0
 pyyaml>=6.0
 regex>=2023.10.3
 
-# 可选依赖
-# matplotlib>=3.7.0  # 图表生成
-# rapidfuzz>=3.5.0   # 高性能编辑距离
+# NetworkX聚类引擎依赖
+networkx>=3.0
+python-igraph>=0.10.0  # CPU Leiden算法支持
+leidenalg>=0.9.0       # CPU Leiden算法支持
 
-# 重要说明：
-# FAISS GPU/CPU 需要通过 conda-forge 安装：
-# conda install -c conda-forge faiss-gpu>=1.12.0
-# 或者
-# conda install -c conda-forge faiss-cpu>=1.12.0
+# 可选依赖
+matplotlib>=3.7.0   # 图表生成
+rapidfuzz>=3.5.0    # 高性能编辑距离
+
+# 🚨 重要说明：以下组件需要通过conda安装，pip无法安装
+
+# FAISS向量搜索 (必需):
+# conda install -c conda-forge faiss-gpu>=1.12.0  # GPU版本
+# conda install -c conda-forge faiss-cpu>=1.12.0  # CPU版本
+
+# GPU图计算加速 (可选，需要NVIDIA GPU + RAPIDS):
+# conda install -c rapidsai -c conda-forge cudf>=23.10 cugraph>=23.10
+# 
+# RAPIDS安装要求：
+# - NVIDIA GPU (Compute Capability >= 6.0)
+# - CUDA 11.8+ 或 12.0+
+# - 足够的GPU内存 (建议 >= 8GB)
+#
+# 详细安装指南：
+# https://rapids.ai/start.html
