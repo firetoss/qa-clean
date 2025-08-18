@@ -252,7 +252,7 @@ def run(cfg_path: str, input_file: str = None) -> None:
     
     print("[stage4] 使用原始单核聚类算法（最小依赖版本）")
 
-    pairs = pd.read_parquet(f"{out_dir}/pair_scores.parquet")
+    pairs = pd.read_parquet(f"{out_dir}/stage3_ranked_pairs.parquet")
     print(f"[stage4] 加载 {len(pairs)} 个相似对")
 
     # 构核心图（高置信）

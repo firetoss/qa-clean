@@ -138,10 +138,16 @@ def run(cfg_path: str, input_file: str = None) -> None:
     tol_pct = float(cfg.get('govern.number_tolerance_pct', 0.05))
     tol_days = int(cfg.get('govern.date_tolerance_days', 1))
 
+    # 加载聚类结果和数据
+    clusters = pd.read_parquet(f"{out_dir}/clusters.parquet")
+    stage2 = pd.read_parquet(f"{out_dir}/stage2_data.parquet")
+    
+    print(f"[stage5] 加载 {len(clusters)} 个聚类，{len(stage2)} 条数据")
+
     rows = []
     conflict_count = 0
     for _, c in clusters.iterrows():
-        members = [int(x) for x in c['members']]
+        members = c['members']
         answers = [stage2.iloc[m][a_col] for m in members]
         signals = [extract_signals(a) for a in answers]
         conflict = False
@@ -166,8 +172,32 @@ def run(cfg_path: str, input_file: str = None) -> None:
         })
 
     out = pd.DataFrame(rows)
+    
+    # 保存最终结果 - 3种格式
+    base_filename = f"{out_dir}/final_clusters"
+    
+    # 1. Parquet格式 (保持原有逻辑)
+    write_parquet(out, f"{base_filename}.parquet")
+    
+    # 2. CSV格式
+    # 需要处理members列表，转换为字符串格式以便CSV保存
+    out_csv = out.copy()
+    out_csv['members'] = out_csv['members'].apply(lambda x: ','.join(map(str, x)))
+    out_csv.to_csv(f"{base_filename}.csv", index=False, encoding='utf-8')
+    
+    # 3. Excel格式
+    # 同样处理members列表
+    out_excel = out.copy()
+    out_excel['members'] = out_excel['members'].apply(lambda x: ','.join(map(str, x)))
+    out_excel.to_excel(f"{base_filename}.xlsx", index=False, engine='openpyxl')
+    
+    print(f"[stage5] 保存 {len(out)} 个最终聚类结果到多种格式:")
+    print(f"  - final_clusters.parquet (原始格式，包含列表)")
+    print(f"  - final_clusters.csv (CSV格式，members为逗号分隔)")
+    print(f"  - final_clusters.xlsx (Excel格式，members为逗号分隔)")
+    
     stats.update('stage5', {
-        'num_clusters': int(clusters.shape[0]),
+        'num_clusters': int(len(out)),
         'conflict_clusters': int(conflict_count),
         'merge_rate': float((out['merged_answer'] != out['representative_answer']).mean()) if len(out) else 0.0,
     })

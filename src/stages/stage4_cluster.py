@@ -67,6 +67,29 @@ def run(cfg_path: str, input_file: str = None, n_jobs: Optional[int] = None) -> 
     if engine == 'networkx':
         try:
             from .stage4_cluster_networkx import run as run_networkx
+            run_networkx(cfg_path, input_file, n_jobs)
+            return
+        except ImportError as e:
+            print(f"[stage4] NetworkX引擎依赖缺失: {e}，回退到并行引擎")
+            engine = 'parallel'
+    
+    # 并行引擎：多核优化连通分量算法
+    if engine == 'parallel':
+        try:
+            from .stage4_cluster_parallel import run as run_parallel
+            run_parallel(cfg_path, input_file, n_jobs)
+            return
+        except ImportError as e:
+            print(f"[stage4] 并行引擎依赖缺失: {e}，回退到原始引擎")
+            engine = 'original'
+    
+    # 原始引擎：单核连通分量算法
+    if engine == 'original':
+        from .stage4_cluster_original import run as run_original
+        run_original(cfg_path, input_file, n_jobs)
+        return
+    
+    raise ValueError(f"不支持的聚类引擎: {engine}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

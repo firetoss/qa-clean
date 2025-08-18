@@ -136,6 +136,12 @@ def run(cfg_path: str, input_file: str = None) -> None:
     device = em_cfg.get('device', 'cuda')
     models = em_cfg.get('models', {})
 
+    t0 = time.perf_counter()
+    emb_a = batch_encode(models.get('a', FALLBACK_EMB['a']), questions, device, bs)
+    emb_b = batch_encode(models.get('b', FALLBACK_EMB['b']), questions, device, bs)
+    emb_c = batch_encode(models.get('c', FALLBACK_EMB['c']), questions, device, bs)
+    t1 = time.perf_counter()
+
     if cfg.get('embeddings.normalize', True):
         def l2n(x):
             n = np.linalg.norm(x, axis=1, keepdims=True) + 1e-12
@@ -143,6 +149,10 @@ def run(cfg_path: str, input_file: str = None) -> None:
         emb_a = l2n(emb_a)
         emb_b = l2n(emb_b)
         emb_c = l2n(emb_c)
+
+    save_npy(f"{out_dir}/emb_a.npy", emb_a)
+    save_npy(f"{out_dir}/emb_b.npy", emb_b)
+    save_npy(f"{out_dir}/emb_c.npy", emb_c)
 
     # FAISS search (timed)
     provider = build_or_load_index(cfg, emb_a)
@@ -238,6 +248,10 @@ def run(cfg_path: str, input_file: str = None) -> None:
             metas['score_hint'].append(float(np.dot(emb_a[i], emb_a[j])))
 
     meta = pd.DataFrame(metas)
+
+    # 保存数据文件供stage3使用
+    write_parquet(df, f"{out_dir}/stage2_data.parquet")
+    write_parquet(meta, f"{out_dir}/candidate_pairs_meta.parquet")
 
     # outputs
     stats.update('stage2', {

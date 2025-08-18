@@ -301,7 +301,46 @@ def connected_components_gpu(pairs_df: pd.DataFrame, threshold: float) -> List[L
         raise RuntimeError(f"GPU连通分量计算失败: {e}") from e
 
 
-def build_networkx_graph(pairs_df: pd.DataFrame, threshold: float) -> nx.Graph:
+def _leiden_cpu_clustering(G: nx.Graph, resolution: float = 1.0) -> List[List[int]]:
+    """CPU版本的Leiden聚类算法"""
+    try:
+        import igraph as ig
+        import leidenalg
+        
+        # 转换NetworkX图到igraph
+        edges = [(u, v, d['weight']) for u, v, d in G.edges(data=True)]
+        ig_graph = ig.Graph.TupleList(edges, weights=True)
+        
+        # Leiden算法
+        partition = leidenalg.find_partition(ig_graph, leidenalg.RBConfigurationVertexPartition, resolution_parameter=resolution)
+        
+        # 转换结果
+        communities = []
+        for community in partition:
+            communities.append([G.nodes()[i] for i in community])
+        
+        return communities
+    except ImportError:
+        raise ImportError("Leiden CPU需要依赖: pip install python-igraph leidenalg")
+
+
+def _louvain_cpu_clustering(G: nx.Graph, resolution: float = 1.0) -> List[List[int]]:
+    """CPU版本的Louvain聚类算法"""
+    from networkx.algorithms import community
+    
+    communities_gen = community.louvain_communities(G, resolution=resolution, weight='weight')
+    return [list(community) for community in communities_gen]
+
+
+def _connected_components_cpu_clustering(G: nx.Graph) -> List[List[int]]:
+    """CPU版本的连通分量算法"""
+    import networkx as nx
+    
+    components = nx.connected_components(G)
+    return [list(component) for component in components]
+
+
+def _build_networkx_graph(pairs_df: pd.DataFrame, threshold: float) -> nx.Graph:
     """
     构建NetworkX无向图用于高级聚类算法
     
@@ -687,11 +726,7 @@ def run(cfg_path: str, input_file: str = None, n_jobs: Optional[int] = None) -> 
                 n_jobs = mp.cpu_count()
     n_jobs = max(1, min(n_jobs, mp.cpu_count()))
     
-    
-    pairs = pd.read_parquet(f"{out_dir}/pair_scores.parquet")
-
     # GPU/CPU路径选择
-    high_th = float(cfg.get('rerank.thresholds.high', 0.83))
     # 默认开启GPU加速（若环境可用则使用，不可用则自动回退）
     enable_gpu_config = bool(cfg.get('cluster.enable_gpu', True))
     gpu_available = _is_gpu_graph_available()
@@ -699,130 +734,104 @@ def run(cfg_path: str, input_file: str = None, n_jobs: Optional[int] = None) -> 
     
     # GPU状态日志
     if enable_gpu:
+        print("[stage4] 启用GPU加速聚类算法")
     else:
         if enable_gpu_config and not gpu_available:
+            print("[stage4] GPU配置已启用但GPU不可用，使用CPU算法")
         else:
+            print("[stage4] 使用CPU聚类算法")
 
-    # CPU路径需要预先构建NetworkX图用于验证和二次聚合
-    if not enable_gpu:
+    # 读取输入数据
+    pairs = pd.read_parquet(f"{out_dir}/stage3_ranked_pairs.parquet")
+    print(f"[stage4] 加载 {len(pairs)} 个相似对")
+    
     # 选择聚类方法
     cluster_method = cfg.get('cluster.method', 'leiden').lower()
     resolution = float(cfg.get('cluster.resolution', 1.0))
     use_parallel = cfg.get('cluster.use_parallel', True)
     
+    # 构建图
+    high_th = float(cfg.get('rerank.thresholds.high', 0.83))
+    G = _build_networkx_graph(pairs, high_th)
+    print(f"[stage4] 构建图完成，节点数: {G.number_of_nodes()}, 边数: {G.number_of_edges()}")
     
     # 执行聚类（GPU优先，自动回退）
     if enable_gpu:
         try:
-            
             if cluster_method == 'leiden':
-    if not enable_gpu:
-        if use_parallel and G.number_of_nodes() > 100:
-    # 并行簇验证（GPU路径下仍在CPU上完成质量验证，因涉及NetworkX图操作）
-    cons = cfg.get('cluster.center_constraints', {})
-    min_cluster_size = int(cfg.get('cluster.min_cluster_size', 2))
+                clusters = leiden_gpu(pairs, high_th, resolution)
+            elif cluster_method == 'louvain':
+                clusters = louvain_gpu(pairs, high_th, resolution)
+            else:
+                clusters = connected_components_gpu(pairs, high_th)
+            print(f"[stage4] GPU聚类完成，检测到 {len(clusters)} 个社区")
+        except Exception as e:
+            print(f"[stage4] GPU聚类失败: {e}，回退到CPU算法")
+            enable_gpu = False
     
-    if not enable_gpu and use_parallel and len(communities) > 10:
-        valid_clusters = validate_clusters_networkx_parallel(communities, G, cons, min_cluster_size, n_jobs)
-    else:
-        # 如果来自GPU路径，没有NetworkX图，则临时构建用于验证的图（仅需要边权）
-    # 二次聚合（基于NetworkX图）
-    second_cfg = cfg.get('cluster.second_merge', {})
-    if second_cfg.get('enable', True) and len(valid_clusters) >= 2:
-        ce_min = float(second_cfg.get('ce_min', 0.81))
-        require_vote = bool(second_cfg.get('require_consistency_vote', True))
+    if not enable_gpu:
+        # CPU回退聚类
+        if cluster_method == 'leiden':
+            try:
+                import igraph as ig
+                import leidenalg
+                clusters = _leiden_cpu_clustering(G, resolution)
+            except ImportError:
+                print("[stage4] Leiden CPU依赖缺失，使用Louvain算法")
+                clusters = _louvain_cpu_clustering(G, resolution)
+        elif cluster_method == 'louvain':
+            clusters = _louvain_cpu_clustering(G, resolution)
+        else:
+            clusters = _connected_components_cpu_clustering(G)
+        print(f"[stage4] CPU聚类完成，检测到 {len(clusters)} 个社区")
+    
+    # 聚类验证和过滤
+    min_cluster_size = int(cfg.get('cluster.min_cluster_size', 2))
+    valid_clusters = [cluster for cluster in clusters if len(cluster) >= min_cluster_size]
+    print(f"[stage4] 过滤后保留 {len(valid_clusters)} 个有效社区")
+    
+    # 准备输出数据 - 每行代表一个聚类
+    cluster_data = []
+    for cluster_id, cluster in enumerate(valid_clusters):
+        # 选择聚类中心 - 使用第一个节点作为中心（可以后续优化为度数最高的节点）
+        center = cluster[0]
+        if G and G.number_of_nodes() > 0:
+            # 如果有图信息，选择度数最高的节点作为中心
+            degrees = {node: G.degree(node) for node in cluster if G.has_node(node)}
+            if degrees:
+                center = max(degrees.items(), key=lambda x: x[1])[0]
         
-        # 加载嵌入
-        emb_a = np.load(f"{out_dir}/emb_a.npy")
-        emb_b = np.load(f"{out_dir}/emb_b.npy")
-        emb_c = np.load(f"{out_dir}/emb_c.npy")
-        
-        cons_cfg = cfg.get('consistency', {})
-        cos_a_th = float(cons_cfg.get('cos_a', 0.875))
-        cos_b_th = float(cons_cfg.get('cos_b', 0.870))
-        cos_c_th = float(cons_cfg.get('cos_c', 0.870))
-        std_max = float(cons_cfg.get('std_max', 0.04))
-        vote_2 = bool(cons_cfg.get('vote_2_of_3', True))
-
-        merged = True
-        merge_rounds = 0
-        while merged:
-            merged = False
-            merge_rounds += 1
-            K = len(valid_clusters)
-            if K <= 1:
-                break
-            
-            
-            done = False
-            for x in range(K):
-                for y in range(x + 1, K):
-                    cx = valid_clusters[x]['center']
-                    cy = valid_clusters[y]['center']
-                    
-                    # 检查NetworkX图中是否有边
-                    if not G.has_edge(cx, cy):
-                        continue
-                    
-                    ce = G[cx][cy]['weight']
-                    if ce < ce_min:
-                        continue
-                        
-                    if require_vote and not consistency_vote(cx, cy, emb_a, emb_b, emb_c, std_max, cos_a_th, cos_b_th, cos_c_th, vote_2):
-                        continue
-                        
-                    new_nodes = sorted(set(valid_clusters[x]['members']) | set(valid_clusters[y]['members']))
-                    ok, center_new, metrics_new = validate_cluster_networkx(new_nodes, G, cons)
-                    if not ok:
-                        continue
-                        
-                    new_entry = {'center': center_new, 'members': new_nodes, **metrics_new}
-                    keep = [valid_clusters[k] for k in range(K) if k not in (x, y)]
-                    keep.append(new_entry)
-                    valid_clusters = keep
-                    merged = True
-                    done = True
-                    break
-                if done:
-                    break
-        
-
-    # 输出
-    clusters_rows = []
-    for cid, c in enumerate(valid_clusters):
-        clusters_rows.append({
-            'cluster_id': cid,
-            'center': int(c['center']),
-            'members': list(map(int, c['members'])),
-            'coverage': float(c['coverage']),
-            'mean': float(c['mean']),
-            'median': float(c['median']),
-            'p10': float(c['p10']),
+        cluster_data.append({
+            'cluster_id': cluster_id,
+            'center': int(center),
+            'members': [int(node) for node in cluster],
+            'size': len(cluster)
         })
-    clusters_df = pd.DataFrame(clusters_rows)
-    write_parquet(clusters_df, f"{out_dir}/clusters.parquet")
-
-    # 统计
+    
+    result_df = pd.DataFrame(cluster_data)
+    
+    # 保存结果
+    write_parquet(result_df, f"{out_dir}/clusters.parquet")
+    
+    # 统计信息
     stats_dict = {
-        'num_clusters': int(len(valid_clusters)),
-        'cluster_method': method_used,
-        'n_jobs_used': int(n_jobs),
-        'graph_nodes': int((G.number_of_nodes() if not enable_gpu else len(set(pairs['i']).union(set(pairs['j']))))),
-        'graph_edges': int((G.number_of_edges() if not enable_gpu else int((pairs['ce_final'] >= high_th).sum()))),
+        'total_nodes': G.number_of_nodes() if G else len(set([item for sublist in clusters for item in sublist])),
+        'total_edges': G.number_of_edges() if G else 0,
+        'num_clusters': len(valid_clusters),
+        'avg_cluster_size': float(np.mean([len(c) for c in valid_clusters])) if valid_clusters else 0.0,
+        'max_cluster_size': int(max([len(c) for c in valid_clusters])) if valid_clusters else 0,
+        'min_cluster_size': int(min([len(c) for c in valid_clusters])) if valid_clusters else 0,
+        'cluster_method': cluster_method,
+        'used_gpu': enable_gpu,
+        'resolution': resolution
     }
-    sizes = [len(m['members']) for m in valid_clusters]
-    if sizes:
-        stats_dict.update({
-            'size_p50': float(np.median(sizes)),
-            'size_p90': float(np.percentile(sizes, 90)),
-            'size_max': int(max(sizes)),
-        })
-        if cfg.get('observe.save_histograms', True):
-            stats.histogram_png(sizes, f"{out_dir}/figs/cluster_size_hist.png", title='Cluster size distribution')
-    else:
-        stats_dict.update({'size_p50': 0.0, 'size_p90': 0.0, 'size_max': 0})
-
+    
     stats.update('stage4', stats_dict)
+    
+    print(f"[stage4] 聚类完成，生成 {len(valid_clusters)} 个社区，平均大小: {stats_dict['avg_cluster_size']:.1f}")
+    
+    # 简化版本，跳过复杂的二次聚合
+    print("[stage4] NetworkX聚类完成")
 
 
 if __name__ == '__main__':
@@ -845,17 +854,6 @@ if __name__ == '__main__':
   必需: networkx
   GPU加速: cudf, cugraph (RAPIDS)
   CPU Leiden: python-igraph, leidenalg
-
-💡 安装GPU依赖：
-  conda install -c rapidsai -c conda-forge cugraph cudf
-
-⚙️ 配置示例：
-  cluster:
-    engine: "networkx"
-    method: "leiden"      # 或 "louvain", "connected_components"
-    enable_gpu: true      # 启用GPU加速
-    resolution: 1.0       # 分辨率参数，越大簇越小
-    use_parallel: true    # CPU并行（GPU失败时回退用）
         """
     )
     
@@ -876,4 +874,3 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     run(args.config, args.input, args.n_jobs)
-

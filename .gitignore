@@ -184,3 +184,46 @@ conda-dist/
 *.log
 .env.local
 .env.production
+
+# 输出文件
+outputs/
+data/raw/
+
+# Python缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+
+# 环境相关
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 临时文件
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+
+# 模型缓存
+.cache/
+models/
+*.model
+
+# Jupyter
+.ipynb_checkpoints
+

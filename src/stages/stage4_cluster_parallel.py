@@ -400,7 +400,7 @@ def run(cfg_path: str, input_file: str = None, n_jobs: Optional[int] = None) -> 
     
     print(f"[stage4] 使用 {n_jobs} 个CPU核心进行并行聚类")
     
-    pairs = pd.read_parquet(f"{out_dir}/pair_scores.parquet")
+    pairs = pd.read_parquet(f"{out_dir}/stage3_ranked_pairs.parquet")
     print(f"[stage4] 加载 {len(pairs)} 个相似对")
 
     # 构核心图（高置信）

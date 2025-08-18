@@ -72,6 +72,23 @@ def run(cfg_path: str, input_file: str = None) -> None:
 
     text_pairs: List[Tuple[str, str]] = [(ques[i], ques[j]) for i, j in pairs]
 
+    # 获取cross-encoder模型配置
+    models = rerank_cfg.get('models', {})
+    ce_main_model = models.get('ce_main', FALLBACK_CE['ce_main'])
+    ce_aux1_model = models.get('ce_aux_1', FALLBACK_CE['ce_aux_1'])
+    ce_aux2_model = models.get('ce_aux_2', FALLBACK_CE['ce_aux_2'])
+
+    # 计算cross-encoder分数
+    print(f"[stage3] 开始计算主CE模型分数: {ce_main_model}")
+    ce_main = batch_ce_scores(ce_main_model, text_pairs, device, bs)
+    
+    print(f"[stage3] 开始计算辅助CE模型1分数: {ce_aux1_model}")
+    ce_aux1 = batch_ce_scores(ce_aux1_model, text_pairs, device, bs)
+    
+    print(f"[stage3] 开始计算辅助CE模型2分数: {ce_aux2_model}")
+    ce_aux2 = batch_ce_scores(ce_aux2_model, text_pairs, device, bs)
+
+    # 融合分数
     w_main, w_aux = rerank_cfg.get('fusion', {}).get('weights', [0.7, 0.3])
     ce_aux_max = np.maximum(ce_aux1, ce_aux2)
     ce_final = w_main * ce_main + w_aux * ce_aux_max
@@ -91,6 +108,10 @@ def run(cfg_path: str, input_file: str = None) -> None:
 
     # drop low
     out = out[out['label'] != 'low'].reset_index(drop=True)
+    
+    # 保存输出数据
+    write_parquet(out, f"{out_dir}/stage3_ranked_pairs.parquet")
+    
     # stats & optional figs
     stats.update('stage3', {
         'num_pairs_input': int(len(pairs)),
